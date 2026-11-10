@@ -32,7 +32,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .logo{display:flex;align-items:center;gap:10px}
 .logo-icon.has-img{background:#fff;border:none;padding:0;width:40px;height:40px}.logo-icon img{max-width:100%;max-height:100%;object-fit:contain}.logo-icon{width:34px;height:34px;background:var(--ac);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700}
 .logo-text{font-size:15px;font-weight:700}
-.logo-sub{font-size:11px;color:var(--txm)}
+.logo-sub{font-size:11px;color:var(--txm);white-space:nowrap}
 .topbar-right{display:flex;align-items:center;gap:14px}
 .tax-badge{background:var(--okl);color:var(--ok);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--okb)}
 /* layout */
@@ -225,7 +225,7 @@ body.locked .app{visibility:hidden}
     <div class="logo-icon" id="hdr-logo">N</div>
     <div>
       <div class="logo-text">Numera</div>
-      <div class="logo-sub">Accounting &amp; Tax Platform</div>
+      <div class="logo-sub">Accounting, Contract Management, and Service all in one place!</div>
     </div>
   </div>
   <div class="topbar-right">
@@ -274,43 +274,27 @@ body.locked .app{visibility:hidden}
 ══════════════════════════════════════ -->
 <div class="page active" id="page-dashboard">
   <div class="page-title">Dashboard</div>
-  <div class="page-sub"><span class="co-name">Demo Company (Pty) Ltd</span> — March 2025</div>
+  <div class="page-sub"><span class="co-name">Demo Company (Pty) Ltd</span> — <span id="db-lbl"></span></div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 16px">
+    <button class="btn btn-s btn-sm" onclick="dbStep(-1)" title="Previous financial year"><i class="ti ti-chevron-left"></i></button>
+    <select id="db-fy" onchange="renderDash()" style="width:190px"></select>
+    <button class="btn btn-s btn-sm" onclick="dbStep(1)" title="Next financial year"><i class="ti ti-chevron-right"></i></button>
+    <select id="db-mode" onchange="renderDash()" style="width:180px"><option value="ytd">Year to date</option><option value="full">Full financial year</option></select>
+    <button class="btn btn-s btn-sm" onclick="dbCurrent()"><i class="ti ti-calendar"></i> Current FY</button>
+  </div>
   <div class="g4">
-    <div class="kpi"><div class="kpi-lbl">Revenue (MTD)</div><div class="kpi-val">R 842,600</div><div class="kpi-sub kpi-up"><i class="ti ti-arrow-up-right"></i> +12.4%</div></div>
-    <div class="kpi"><div class="kpi-lbl">Expenses (MTD)</div><div class="kpi-val">R 521,340</div><div class="kpi-sub kpi-dn"><i class="ti ti-arrow-up-right"></i> +6.1%</div></div>
-    <div class="kpi"><div class="kpi-lbl">Net Profit</div><div class="kpi-val" style="color:var(--ok)">R 321,260</div><div class="kpi-sub kpi-up">Margin 38.1%</div></div>
-    <div class="kpi"><div class="kpi-lbl">VAT Liability</div><div class="kpi-val" style="color:var(--wn)">R 94,860</div><div class="kpi-sub kpi-dn">Due 30 Apr</div></div>
+    <div class="kpi"><div class="kpi-lbl">Revenue (YTD)</div><div class="kpi-val" id="db-rev">—</div><div class="kpi-sub" id="db-rev-s"></div></div>
+    <div class="kpi"><div class="kpi-lbl">Expenses (YTD)</div><div class="kpi-val" id="db-exp">—</div><div class="kpi-sub" id="db-exp-s"></div></div>
+    <div class="kpi"><div class="kpi-lbl">Net Profit (YTD)</div><div class="kpi-val" id="db-net">—</div><div class="kpi-sub" id="db-net-s"></div></div>
+    <div class="kpi"><div class="kpi-lbl">VAT Liability</div><div class="kpi-val" id="db-vat">—</div><div class="kpi-sub" id="db-vat-s"></div></div>
   </div>
   <div class="g2">
-    <div class="card">
-      <div class="card-title">Revenue — Last 8 Months <span class="cbdg bdg-ok">↑ Trending</span></div>
-      <div class="mc"><div class="bar" style="height:52%"></div><div class="bar" style="height:61%"></div><div class="bar" style="height:48%"></div><div class="bar" style="height:70%"></div><div class="bar" style="height:65%"></div><div class="bar" style="height:80%"></div><div class="bar" style="height:75%"></div><div class="bar g" style="height:100%"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--txm);margin-top:6px"><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span></div>
-    </div>
-    <div class="card">
-      <div class="card-title">Tax Obligations <span class="cbdg bdg-wn">Action Needed</span></div>
-      <div class="rr"><div><div class="rr-name">VAT Return (Feb/Mar 2025)</div><div class="rr-desc">Due 30 April 2025</div></div><span class="chip c-wn">Pending</span></div>
-      <div class="rr"><div><div class="rr-name">PAYE EMP201 — March</div><div class="rr-desc">Due 7 April 2025</div></div><span class="chip c-dn">Urgent</span></div>
-      <div class="rr"><div><div class="rr-name">Provisional Tax IRP6</div><div class="rr-desc">Due 31 Aug 2025</div></div><span class="chip c-gr">Future</span></div>
-    </div>
+    <div class="card"><div class="card-title">Revenue by Month</div><div class="mc" id="db-bars"></div><div id="db-bar-lbl" style="display:flex;justify-content:space-between;font-size:11px;color:var(--txm);margin-top:6px"></div></div>
+    <div class="card"><div class="card-title">Financial Position <span style="font-weight:400;font-size:12px;color:var(--txm)" id="db-asat"></span></div><div id="db-pos"></div></div>
   </div>
   <div class="g2">
-    <div class="card">
-      <div class="card-title">Outstanding Invoices <span class="cbdg bdg-dn">3 Overdue</span></div>
-      <table><thead><tr><th>Client</th><th>Amount</th><th>Status</th></tr></thead><tbody>
-        <tr><td>Woolworths Ltd</td><td class="tr">R 128,400</td><td class="tc"><span class="chip c-dn">Overdue</span></td></tr>
-        <tr><td>Shoprite Holdings</td><td class="tr">R 84,200</td><td class="tc"><span class="chip c-wn">Due Soon</span></td></tr>
-        <tr><td>MTN Group</td><td class="tr">R 210,000</td><td class="tc"><span class="chip c-ok">Paid</span></td></tr>
-        <tr><td>Naspers Ltd</td><td class="tr">R 56,900</td><td class="tc"><span class="chip c-bl">Sent</span></td></tr>
-      </tbody></table>
-    </div>
-    <div class="card">
-      <div class="card-title">Cash Flow Forecast <span class="cbdg bdg-ok">Healthy</span></div>
-      <div class="rr"><div class="rr-name">Opening Balance</div><div class="rr-val">R 412,000</div></div>
-      <div class="rr"><div class="rr-name">Expected Receipts (Apr)</div><div class="rr-val" style="color:var(--ok)">+ R 680,000</div></div>
-      <div class="rr"><div class="rr-name">Expected Payments (Apr)</div><div class="rr-val" style="color:var(--dn)">− R 485,000</div></div>
-      <div class="rr" style="border:none"><div class="rr-name" style="font-weight:700">Closing Forecast</div><div class="rr-val">R 607,000</div></div>
-    </div>
+    <div class="card"><div class="card-title">Outstanding Customer Balances</div><table><thead><tr><th>Client</th><th class="tr">Balance</th></tr></thead><tbody id="db-cust"></tbody></table></div>
+    <div class="card"><div class="card-title">Top Expenses <span style="font-weight:400;font-size:12px;color:var(--txm)" id="db-exp-p"></span></div><table><thead><tr><th>Account</th><th class="tr">Amount</th></tr></thead><tbody id="db-top"></tbody></table></div>
   </div>
   <div class="card-title" style="margin:8px 0 10px;font-size:15px">Key Ratios <span style="font-weight:400;font-size:12px;color:var(--txm)" id="rt-basis"></span></div>
   <div class="g2" id="rt-grid"></div>
@@ -330,7 +314,7 @@ body.locked .app{visibility:hidden}
     <div class="notice"><i class="ti ti-info-circle"></i> Capture bank receipts and payments in bulk for one bank account. Standard-rated lines include VAT at 15/115 — output VAT on receipts, input VAT on payments. Posts to the bank account against each contra account.</div>
     <div class="card" style="margin-bottom:16px"><div class="card-title">New Cashbook Batch</div>
       <div class="fr3"><div class="fg"><label>Batch Ref</label><input id="cx-ref" readonly></div><div class="fg"><label>Batch Date *</label><input type="date" id="cx-date" value="2025-03-31"></div><div class="fg"><label>Description *</label><input id="cx-desc" placeholder="e.g. March month-end adjustments"></div></div>
-      <div class="fr"><div class="fg"><label>Bank Account *</label><select id="cx-bank" onchange="calcBatch('cx')"><option>1010 — FNB Current Account</option><option>1020 — Nedbank Savings</option></select></div><div class="fg"><label>Batch Type</label><select><option>Mixed (receipts and payments)</option><option>Receipts only</option><option>Payments only</option></select></div></div>
+      <div class="fr"><div class="fg"><label>Bank Account *</label><select id="cx-bank" onchange="calcBatch('cx')"><option>6000 — FNB Current Account</option><option>6010 — Nedbank Savings</option></select></div><div class="fg"><label>Batch Type</label><select><option>Mixed (receipts and payments)</option><option>Receipts only</option><option>Payments only</option></select></div></div>
       <table><thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Description</th><th>Contra Account</th><th>VAT</th><th class="tr">Amount (Incl.)</th><th style="width:44px"></th></tr></thead><tbody id="cx-lines"></tbody></table>
       <div style="margin:10px 0 16px"><button class="btn btn-s btn-sm" onclick="addLine('cx')"><i class="ti ti-plus"></i> Add line</button> <button class="btn btn-s btn-sm" onclick="openImport('cx')"><i class="ti ti-file-import"></i> Import lines</button></div>
       <div class="g3" id="cx-tot" style="margin-bottom:0"></div>
@@ -357,44 +341,44 @@ body.locked .app{visibility:hidden}
   </div>
 <div id="gl-rfs" style="display:none"><div class="card"><div class="card-title"><span>Financial Statements <span style="font-size:12px;font-weight:400;color:var(--txm)">FY 2024/25</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><div class="g2" style="margin:0"><div class="stat-card" style="display:flex;flex-direction:column;gap:8px"><div class="stat-lbl">Trial Balance</div><div style="font-size:12px;color:var(--tx2)">Debits and credits for all accounts — R 2,912,100 balanced</div><div><button class="btn btn-p btn-sm" onclick="openReport('tb')"><i class="ti ti-external-link"></i> Open report</button></div></div><div class="stat-card" style="display:flex;flex-direction:column;gap:8px"><div class="stat-lbl">Income Statement</div><div style="font-size:12px;color:var(--tx2)">Revenue, cost of sales, expenses and net profit after tax</div><div><button class="btn btn-p btn-sm" onclick="openReport('pl')"><i class="ti ti-external-link"></i> Open report</button></div></div><div class="stat-card" style="display:flex;flex-direction:column;gap:8px"><div class="stat-lbl">Balance Sheet</div><div style="font-size:12px;color:var(--tx2)">Assets, liabilities and equity at 31 March 2025</div><div><button class="btn btn-p btn-sm" onclick="openReport('bs')"><i class="ti ti-external-link"></i> Open report</button></div></div><div class="stat-card" style="display:flex;flex-direction:column;gap:8px"><div class="stat-lbl">Tax Computation</div><div style="font-size:12px;color:var(--tx2)">Corporate income tax at 27% with wear &amp; tear adjustments</div><div><button class="btn btn-p btn-sm" onclick="openReport('tax')"><i class="ti ti-external-link"></i> Open report</button></div></div></div></div></div>
 <div id="gl-rdet" style="display:none"><div class="card"><div class="card-title"><span>General Ledger Detail Listing <span style="font-size:12px;font-weight:400;color:var(--txm)">18 – 23 March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Date</th><th>Reference</th><th>Description</th><th class="tr">Debit</th><th class="tr">Credit</th><th class="tr">Balance</th></tr></thead><tbody id="glr-body"></tbody></table></div></div>
-<div id="gl-rjnl" style="display:none"><div class="card"><div class="card-title"><span>Journal Listing <span style="font-size:12px;font-weight:400;color:var(--txm)">March 2025 · all journals balanced</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Date</th><th>Ref</th><th>Description</th><th>Account</th><th class="tr">Debit</th><th class="tr">Credit</th></tr></thead><tbody><tr><td>23 Mar</td><td>JNL-089</td><td>Sales invoice — MTN</td><td>1100 — Accounts Receivable</td><td class="tr">R 210,000</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>4010 — Sales — Standard VAT</td><td class="tr">—</td><td class="tr">R 182,609</td></tr><tr><td></td><td></td><td></td><td>2100 — VAT Output</td><td class="tr">—</td><td class="tr">R 27,391</td></tr><tr><td>22 Mar</td><td>JNL-088</td><td>Rent — Bidvest</td><td>5030 — Rent &amp; Occupancy</td><td class="tr">R 20,870</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>1200 — VAT Input</td><td class="tr">R 3,130</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>2010 — Accounts Payable</td><td class="tr">—</td><td class="tr">R 24,000</td></tr><tr><td>20 Mar</td><td>JNL-087</td><td>Payroll — March</td><td>5020 — Salaries &amp; Wages</td><td class="tr">R 92,400</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>2200 — PAYE Payable</td><td class="tr">—</td><td class="tr">R 38,240</td></tr><tr><td></td><td></td><td></td><td>2300 — UIF Payable</td><td class="tr">—</td><td class="tr">R 4,120</td></tr><tr><td></td><td></td><td></td><td>1010 — FNB Current Account</td><td class="tr">—</td><td class="tr">R 50,040</td></tr><tr><td>18 Mar</td><td>JNL-086</td><td>Eskom — electricity</td><td>5050 — Utilities</td><td class="tr">R 8,261</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>1200 — VAT Input</td><td class="tr">R 1,239</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>1010 — FNB Current Account</td><td class="tr">—</td><td class="tr">R 9,500</td></tr><tr><td>15 Mar</td><td>JNL-085</td><td>Monthly depreciation</td><td>5040 — Depreciation</td><td class="tr">R 18,600</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>1510 — Accumulated Depreciation</td><td class="tr">—</td><td class="tr">R 18,600</td></tr><tr class="tg"><td>Total</td><td></td><td></td><td></td><td class="tr">R 354,500</td><td class="tr">R 354,500</td></tr></tbody></table></div></div>
+<div id="gl-rjnl" style="display:none"><div class="card"><div class="card-title"><span>Journal Listing <span style="font-size:12px;font-weight:400;color:var(--txm)">March 2025 · all journals balanced</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Date</th><th>Ref</th><th>Description</th><th>Account</th><th class="tr">Debit</th><th class="tr">Credit</th></tr></thead><tbody><tr><td>23 Mar</td><td>JNL-089</td><td>Sales invoice — MTN</td><td>6100 — Accounts Receivable</td><td class="tr">R 210,000</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>1000 — Sales — Standard VAT</td><td class="tr">—</td><td class="tr">R 182,609</td></tr><tr><td></td><td></td><td></td><td>9100 — VAT Output</td><td class="tr">—</td><td class="tr">R 27,391</td></tr><tr><td>22 Mar</td><td>JNL-088</td><td>Rent — Bidvest</td><td>4010 — Rent &amp; Occupancy</td><td class="tr">R 20,870</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>6300 — VAT Input</td><td class="tr">R 3,130</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>9000 — Accounts Payable</td><td class="tr">—</td><td class="tr">R 24,000</td></tr><tr><td>20 Mar</td><td>JNL-087</td><td>Payroll — March</td><td>4000 — Salaries &amp; Wages</td><td class="tr">R 92,400</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>9200 — PAYE Payable</td><td class="tr">—</td><td class="tr">R 38,240</td></tr><tr><td></td><td></td><td></td><td>9210 — UIF Payable</td><td class="tr">—</td><td class="tr">R 4,120</td></tr><tr><td></td><td></td><td></td><td>6000 — FNB Current Account</td><td class="tr">—</td><td class="tr">R 50,040</td></tr><tr><td>18 Mar</td><td>JNL-086</td><td>Eskom — electricity</td><td>4030 — Utilities</td><td class="tr">R 8,261</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>6300 — VAT Input</td><td class="tr">R 1,239</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>6000 — FNB Current Account</td><td class="tr">—</td><td class="tr">R 9,500</td></tr><tr><td>15 Mar</td><td>JNL-085</td><td>Monthly depreciation</td><td>4020 — Depreciation</td><td class="tr">R 18,600</td><td class="tr">—</td></tr><tr><td></td><td></td><td></td><td>5010 — Accumulated Depreciation</td><td class="tr">—</td><td class="tr">R 18,600</td></tr><tr class="tg"><td>Total</td><td></td><td></td><td></td><td class="tr">R 354,500</td><td class="tr">R 354,500</td></tr></tbody></table></div></div>
 
   <div id="gl-coa">
-    <div class="notice"><i class="ti ti-info-circle"></i> 1xxx Assets · 2xxx Liabilities · 3xxx Equity · 4xxx Income · 5xxx Expenses (SA GAAP / IFRS for SMEs)</div>
+    <div class="notice"><i class="ti ti-info-circle"></i> Income Statement: 1000 Sales · 2000 Cost of Sales · 3000 Other Income · 4000 Overheads — Balance Sheet: 5000 Non-Current Assets · 6000 Current Assets · 7000 Equity · 8000 Non-Current Liabilities · 9000 Current Liabilities</div>
     <div class="card"><div class="card-title">Chart of Accounts <button class="btn btn-p btn-sm" onclick="openAcct()"><i class="ti ti-plus"></i> Add Account</button></div><table>
     <thead><tr><th>Code</th><th>Account Name</th><th>Type</th><th>VAT Code</th><th class="tr">Balance</th><th>Status</th><th style="width:230px"></th></tr></thead>
     <tbody id="coa-body">
       <tr class="ts"><td colspan="6">Assets</td></tr>
-      <tr><td>1010</td><td>FNB Current Account</td><td>Bank</td><td>—</td><td class="tr">R 412,000</td><td><span class="chip c-ok">Active</span></td></tr>
-      <tr><td>1020</td><td>Nedbank Savings</td><td>Bank</td><td>—</td><td class="tr">R 95,200</td><td><span class="chip c-ok">Active</span></td></tr>
-      <tr><td>1100</td><td>Accounts Receivable</td><td>Current Asset</td><td>—</td><td class="tr">R 479,500</td><td><span class="chip c-ok">Active</span></td></tr>
-      <tr><td>1150</td><td>Inventory Asset</td><td>Current Asset</td><td>—</td><td class="tr">R 86,400</td><td><span class="chip c-ok">Active</span></td></tr>
-      <tr><td>1200</td><td>VAT Input (Claimable)</td><td>Tax Asset</td><td>01</td><td class="tr">R 62,400</td><td><span class="chip c-ok">Active</span></td></tr>
-      <tr><td>1500</td><td>Property &amp; Equipment</td><td>Fixed Asset</td><td>—</td><td class="tr">R 1,240,000</td><td><span class="chip c-ok">Active</span></td></tr>
-      <tr><td>1510</td><td>Accumulated Depreciation</td><td>Contra Asset</td><td>—</td><td class="tr">(R 18,600)</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>6000</td><td>FNB Current Account</td><td>Bank</td><td>—</td><td class="tr">R 412,000</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>6010</td><td>Nedbank Savings</td><td>Bank</td><td>—</td><td class="tr">R 95,200</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>6100</td><td>Accounts Receivable</td><td>Current Asset</td><td>—</td><td class="tr">R 479,500</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>6200</td><td>Inventory Asset</td><td>Current Asset</td><td>—</td><td class="tr">R 86,400</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>6300</td><td>VAT Input (Claimable)</td><td>Tax Asset</td><td>01</td><td class="tr">R 62,400</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>5000</td><td>Property &amp; Equipment</td><td>Fixed Asset</td><td>—</td><td class="tr">R 1,240,000</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>5010</td><td>Accumulated Depreciation</td><td>Contra Asset</td><td>—</td><td class="tr">(R 18,600)</td><td><span class="chip c-ok">Active</span></td></tr>
       <tr class="ts"><td colspan="6">Liabilities</td></tr>
-      <tr><td>2010</td><td>Accounts Payable</td><td>Current Liability</td><td>—</td><td class="tr">R 318,700</td><td><span class="chip c-ok">Active</span></td></tr>
-      <tr><td>2100</td><td>VAT Output (Payable)</td><td>Tax Liability</td><td>01</td><td class="tr">R 94,860</td><td><span class="chip c-wn">Due</span></td></tr>
-      <tr><td>2200</td><td>PAYE Payable</td><td>Tax Liability</td><td>—</td><td class="tr">R 38,240</td><td><span class="chip c-wn">Due</span></td></tr>
-      <tr><td>2300</td><td>UIF Payable</td><td>Tax Liability</td><td>—</td><td class="tr">R 4,120</td><td><span class="chip c-wn">Due</span></td></tr>
+      <tr><td>9000</td><td>Accounts Payable</td><td>Current Liability</td><td>—</td><td class="tr">R 318,700</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>9100</td><td>VAT Output (Payable)</td><td>Tax Liability</td><td>01</td><td class="tr">R 94,860</td><td><span class="chip c-wn">Due</span></td></tr>
+      <tr><td>9200</td><td>PAYE Payable</td><td>Tax Liability</td><td>—</td><td class="tr">R 38,240</td><td><span class="chip c-wn">Due</span></td></tr>
+      <tr><td>9210</td><td>UIF Payable</td><td>Tax Liability</td><td>—</td><td class="tr">R 4,120</td><td><span class="chip c-wn">Due</span></td></tr>
       <tr class="ts"><td colspan="6">Equity</td></tr>
-      <tr><td>3010</td><td>Share Capital</td><td>Equity</td><td>—</td><td class="tr">R 1,000,000</td><td><span class="chip c-ok">Active</span></td></tr>
-      <tr><td>3020</td><td>Retained Earnings</td><td>Equity</td><td>—</td><td class="tr">R 586,580</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>7000</td><td>Share Capital</td><td>Equity</td><td>—</td><td class="tr">R 1,000,000</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>7010</td><td>Retained Earnings</td><td>Equity</td><td>—</td><td class="tr">R 586,580</td><td><span class="chip c-ok">Active</span></td></tr>
       <tr class="ts"><td colspan="6">Income</td></tr>
-      <tr><td>4010</td><td>Sales — Standard VAT</td><td>Income</td><td>01</td><td class="tr">R 842,600</td><td><span class="chip c-ok">Active</span></td></tr>
-      <tr><td>4020</td><td>Sales — Zero Rated</td><td>Income</td><td>02</td><td class="tr">R 0</td><td><span class="chip c-ok">Active</span></td></tr>
-      <tr><td>4030</td><td>Interest Income</td><td>Income</td><td>—</td><td class="tr">R 8,400</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>1000</td><td>Sales — Standard VAT</td><td>Income</td><td>01</td><td class="tr">R 842,600</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>1010</td><td>Sales — Zero Rated</td><td>Income</td><td>02</td><td class="tr">R 0</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>3000</td><td>Interest Income</td><td>Income</td><td>—</td><td class="tr">R 8,400</td><td><span class="chip c-ok">Active</span></td></tr>
       <tr class="ts"><td colspan="6">Expenses</td></tr>
-      <tr><td>5010</td><td>Cost of Sales</td><td>Expense</td><td>01</td><td class="tr">R 380,200</td><td><span class="chip c-ok">Active</span></td></tr>
-      <tr><td>5020</td><td>Salaries &amp; Wages</td><td>Expense</td><td>—</td><td class="tr">R 92,400</td><td><span class="chip c-ok">Active</span></td></tr>
-      <tr><td>5030</td><td>Rent &amp; Occupancy</td><td>Expense</td><td>01</td><td class="tr">R 24,000</td><td><span class="chip c-ok">Active</span></td></tr>
-      <tr><td>5040</td><td>Depreciation</td><td>Expense</td><td>—</td><td class="tr">R 18,600</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>2000</td><td>Cost of Sales</td><td>Expense</td><td>01</td><td class="tr">R 380,200</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>4000</td><td>Salaries &amp; Wages</td><td>Expense</td><td>—</td><td class="tr">R 92,400</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>4010</td><td>Rent &amp; Occupancy</td><td>Expense</td><td>01</td><td class="tr">R 24,000</td><td><span class="chip c-ok">Active</span></td></tr>
+      <tr><td>4020</td><td>Depreciation</td><td>Expense</td><td>—</td><td class="tr">R 18,600</td><td><span class="chip c-ok">Active</span></td></tr>
     </tbody>
   </table></div>
   </div>
   <div id="gl-addacc" style="display:none">
     <div class="card"><div class="card-title" id="ga-title">Add General Ledger Account</div>
-      <div class="fr"><div class="fg"><label>Account Code * <span style="font-weight:400;color:var(--txm)">(4 digits, 1xxx–5xxx)</span></label><input id="ga-code" maxlength="4" inputmode="numeric" placeholder="e.g. 5100" oninput="acctCodeChanged()"></div><div class="fg"><label>Account Name *</label><input id="ga-name" maxlength="60" placeholder="e.g. Marketing &amp; Advertising"></div></div>
+      <div class="fr"><div class="fg"><label>Account Code * <span style="font-weight:400;color:var(--txm)">(4 digits: 1000–4999 income statement, 5000–9999 balance sheet)</span></label><input id="ga-code" maxlength="4" inputmode="numeric" placeholder="e.g. 4080" oninput="acctCodeChanged()"></div><div class="fg"><label>Account Name *</label><input id="ga-name" maxlength="60" placeholder="e.g. Marketing &amp; Advertising"></div></div>
       <div class="fr"><div class="fg"><label>Account Category</label><input id="ga-cat" readonly placeholder="Set by the first digit of the code"></div><div class="fg"><label>Account Type *</label><select id="ga-type"></select></div></div>
       <div class="fr3"><div class="fg"><label>VAT Code</label><select id="ga-vat"><option value="—">— No VAT</option><option value="01">01 — Standard 15%</option><option value="02">02 — Zero-rated</option><option value="Exempt">Exempt</option></select></div><div class="fg"><label>Opening Balance (ZAR)</label><input type="number" step="0.01" id="ga-open" placeholder="0.00"></div><div class="fg"><label>Status</label><select id="ga-active"><option value="1">Active</option><option value="0">Inactive</option></select></div></div>
       <div class="form-err" id="ga-err"></div>
@@ -405,23 +389,23 @@ body.locked .app{visibility:hidden}
     <div class="notice"><i class="ti ti-info-circle"></i> IFRS double-entry. Debits must equal credits before posting.</div>
     <div class="card"><div class="card-title">General Journal <button class="btn btn-p btn-sm" onclick="stab('gl','newjnl',null)"><i class="ti ti-plus"></i> New Journal Entry</button></div><table><thead><tr><th>Date</th><th>Ref</th><th>Description</th><th>Account</th><th class="tr">Debit</th><th class="tr">Credit</th></tr></thead>
     <tbody>
-      <tr><td>23 Mar</td><td>JNL-089</td><td>Sales — MTN</td><td>1100 – Debtors</td><td class="tr">R 210,000</td><td></td></tr>
-      <tr><td></td><td></td><td></td><td>4010 – Sales</td><td></td><td class="tr">R 182,609</td></tr>
-      <tr><td></td><td></td><td></td><td>2100 – VAT Output</td><td></td><td class="tr">R 27,391</td></tr>
-      <tr style="background:var(--bg2)"><td>22 Mar</td><td>JNL-088</td><td>Rent — Bidvest</td><td>5030 – Rent</td><td class="tr">R 20,870</td><td></td></tr>
-      <tr style="background:var(--bg2)"><td></td><td></td><td></td><td>1200 – VAT Input</td><td class="tr">R 3,130</td><td></td></tr>
-      <tr style="background:var(--bg2)"><td></td><td></td><td></td><td>2010 – Creditors</td><td></td><td class="tr">R 24,000</td></tr>
-      <tr><td>20 Mar</td><td>JNL-087</td><td>Payroll March</td><td>5020 – Salaries</td><td class="tr">R 92,400</td><td></td></tr>
-      <tr><td></td><td></td><td></td><td>2200 – PAYE Payable</td><td></td><td class="tr">R 38,240</td></tr>
-      <tr><td></td><td></td><td></td><td>2300 – UIF Payable</td><td></td><td class="tr">R 4,120</td></tr>
-      <tr><td></td><td></td><td></td><td>1010 – Bank (FNB)</td><td></td><td class="tr">R 50,040</td></tr>
+      <tr><td>23 Mar</td><td>JNL-089</td><td>Sales — MTN</td><td>6100 – Debtors</td><td class="tr">R 210,000</td><td></td></tr>
+      <tr><td></td><td></td><td></td><td>1000 – Sales</td><td></td><td class="tr">R 182,609</td></tr>
+      <tr><td></td><td></td><td></td><td>9100 – VAT Output</td><td></td><td class="tr">R 27,391</td></tr>
+      <tr style="background:var(--bg2)"><td>22 Mar</td><td>JNL-088</td><td>Rent — Bidvest</td><td>4010 – Rent</td><td class="tr">R 20,870</td><td></td></tr>
+      <tr style="background:var(--bg2)"><td></td><td></td><td></td><td>6300 – VAT Input</td><td class="tr">R 3,130</td><td></td></tr>
+      <tr style="background:var(--bg2)"><td></td><td></td><td></td><td>9000 – Creditors</td><td></td><td class="tr">R 24,000</td></tr>
+      <tr><td>20 Mar</td><td>JNL-087</td><td>Payroll March</td><td>4000 – Salaries</td><td class="tr">R 92,400</td><td></td></tr>
+      <tr><td></td><td></td><td></td><td>9200 – PAYE Payable</td><td></td><td class="tr">R 38,240</td></tr>
+      <tr><td></td><td></td><td></td><td>9210 – UIF Payable</td><td></td><td class="tr">R 4,120</td></tr>
+      <tr><td></td><td></td><td></td><td>6000 – Bank (FNB)</td><td></td><td class="tr">R 50,040</td></tr>
     </tbody></table></div>
   </div>
   <div id="gl-newjnl" style="display:none">
     <div class="card"><div class="card-title">New Journal Entry</div>
       <div class="fr3"><div class="fg"><label>Journal Date *</label><input type="date" value="2025-03-31"></div><div class="fg"><label>Journal Ref #</label><input value="JNL-2025-090" readonly></div><div class="fg"><label>Description *</label><input placeholder="e.g. Month-end accrual"></div></div>
       <hr>
-      <div style="margin-bottom:10px;display:flex;gap:8px"><button class="btn btn-s btn-sm" onclick="jnAddRow()"><i class="ti ti-plus"></i> Add line</button><button class="btn btn-s btn-sm" onclick="openImport('jn')"><i class="ti ti-file-import"></i> Import lines</button></div><table><thead><tr><th>Account</th><th>Narration</th><th class="tr" style="width:140px">Debit</th><th class="tr" style="width:140px">Credit</th></tr></thead><tbody><tr><td><select style="min-width:220px"><option value="">Select account…</option><option>1010 — FNB Current Account</option><option>1020 — Nedbank Savings</option><option>1100 — Accounts Receivable</option><option>1150 — Inventory Asset</option><option>1200 — VAT Input</option><option>1500 — Property &amp; Equipment</option><option>2010 — Accounts Payable</option><option>2100 — VAT Output</option><option>2200 — PAYE Payable</option><option>2300 — UIF Payable</option><option>3010 — Share Capital</option><option>3020 — Retained Earnings</option><option>4010 — Sales — Standard VAT</option><option>4030 — Interest Income</option><option>5010 — Cost of Sales</option><option>5020 — Salaries &amp; Wages</option><option>5030 — Rent &amp; Occupancy</option><option>5040 — Depreciation</option></select></td><td><input placeholder="Narration"></td><td><input type="number" class="jd tr" placeholder="0.00" oninput="calcJnl()"></td><td><input type="number" class="jc tr" placeholder="0.00" oninput="calcJnl()"></td></tr><tr><td><select style="min-width:220px"><option value="">Select account…</option><option>1010 — FNB Current Account</option><option>1020 — Nedbank Savings</option><option>1100 — Accounts Receivable</option><option>1150 — Inventory Asset</option><option>1200 — VAT Input</option><option>1500 — Property &amp; Equipment</option><option>2010 — Accounts Payable</option><option>2100 — VAT Output</option><option>2200 — PAYE Payable</option><option>2300 — UIF Payable</option><option>3010 — Share Capital</option><option>3020 — Retained Earnings</option><option>4010 — Sales — Standard VAT</option><option>4030 — Interest Income</option><option>5010 — Cost of Sales</option><option>5020 — Salaries &amp; Wages</option><option>5030 — Rent &amp; Occupancy</option><option>5040 — Depreciation</option></select></td><td><input placeholder="Narration"></td><td><input type="number" class="jd tr" placeholder="0.00" oninput="calcJnl()"></td><td><input type="number" class="jc tr" placeholder="0.00" oninput="calcJnl()"></td></tr><tr><td><select style="min-width:220px"><option value="">Select account…</option><option>1010 — FNB Current Account</option><option>1020 — Nedbank Savings</option><option>1100 — Accounts Receivable</option><option>1150 — Inventory Asset</option><option>1200 — VAT Input</option><option>1500 — Property &amp; Equipment</option><option>2010 — Accounts Payable</option><option>2100 — VAT Output</option><option>2200 — PAYE Payable</option><option>2300 — UIF Payable</option><option>3010 — Share Capital</option><option>3020 — Retained Earnings</option><option>4010 — Sales — Standard VAT</option><option>4030 — Interest Income</option><option>5010 — Cost of Sales</option><option>5020 — Salaries &amp; Wages</option><option>5030 — Rent &amp; Occupancy</option><option>5040 — Depreciation</option></select></td><td><input placeholder="Narration"></td><td><input type="number" class="jd tr" placeholder="0.00" oninput="calcJnl()"></td><td><input type="number" class="jc tr" placeholder="0.00" oninput="calcJnl()"></td></tr><tr><td><select style="min-width:220px"><option value="">Select account…</option><option>1010 — FNB Current Account</option><option>1020 — Nedbank Savings</option><option>1100 — Accounts Receivable</option><option>1150 — Inventory Asset</option><option>1200 — VAT Input</option><option>1500 — Property &amp; Equipment</option><option>2010 — Accounts Payable</option><option>2100 — VAT Output</option><option>2200 — PAYE Payable</option><option>2300 — UIF Payable</option><option>3010 — Share Capital</option><option>3020 — Retained Earnings</option><option>4010 — Sales — Standard VAT</option><option>4030 — Interest Income</option><option>5010 — Cost of Sales</option><option>5020 — Salaries &amp; Wages</option><option>5030 — Rent &amp; Occupancy</option><option>5040 — Depreciation</option></select></td><td><input placeholder="Narration"></td><td><input type="number" class="jd tr" placeholder="0.00" oninput="calcJnl()"></td><td><input type="number" class="jc tr" placeholder="0.00" oninput="calcJnl()"></td></tr>
+      <div style="margin-bottom:10px;display:flex;gap:8px"><button class="btn btn-s btn-sm" onclick="jnAddRow()"><i class="ti ti-plus"></i> Add line</button><button class="btn btn-s btn-sm" onclick="openImport('jn')"><i class="ti ti-file-import"></i> Import lines</button></div><table><thead><tr><th>Account</th><th>Narration</th><th class="tr" style="width:140px">Debit</th><th class="tr" style="width:140px">Credit</th></tr></thead><tbody><tr><td><select style="min-width:220px"><option value="">Select account…</option><option>6000 — FNB Current Account</option><option>6010 — Nedbank Savings</option><option>6100 — Accounts Receivable</option><option>6200 — Inventory Asset</option><option>6300 — VAT Input</option><option>5000 — Property &amp; Equipment</option><option>9000 — Accounts Payable</option><option>9100 — VAT Output</option><option>9200 — PAYE Payable</option><option>9210 — UIF Payable</option><option>7000 — Share Capital</option><option>7010 — Retained Earnings</option><option>1000 — Sales — Standard VAT</option><option>3000 — Interest Income</option><option>2000 — Cost of Sales</option><option>4000 — Salaries &amp; Wages</option><option>4010 — Rent &amp; Occupancy</option><option>4020 — Depreciation</option></select></td><td><input placeholder="Narration"></td><td><input type="number" class="jd tr" placeholder="0.00" oninput="calcJnl()"></td><td><input type="number" class="jc tr" placeholder="0.00" oninput="calcJnl()"></td></tr><tr><td><select style="min-width:220px"><option value="">Select account…</option><option>6000 — FNB Current Account</option><option>6010 — Nedbank Savings</option><option>6100 — Accounts Receivable</option><option>6200 — Inventory Asset</option><option>6300 — VAT Input</option><option>5000 — Property &amp; Equipment</option><option>9000 — Accounts Payable</option><option>9100 — VAT Output</option><option>9200 — PAYE Payable</option><option>9210 — UIF Payable</option><option>7000 — Share Capital</option><option>7010 — Retained Earnings</option><option>1000 — Sales — Standard VAT</option><option>3000 — Interest Income</option><option>2000 — Cost of Sales</option><option>4000 — Salaries &amp; Wages</option><option>4010 — Rent &amp; Occupancy</option><option>4020 — Depreciation</option></select></td><td><input placeholder="Narration"></td><td><input type="number" class="jd tr" placeholder="0.00" oninput="calcJnl()"></td><td><input type="number" class="jc tr" placeholder="0.00" oninput="calcJnl()"></td></tr><tr><td><select style="min-width:220px"><option value="">Select account…</option><option>6000 — FNB Current Account</option><option>6010 — Nedbank Savings</option><option>6100 — Accounts Receivable</option><option>6200 — Inventory Asset</option><option>6300 — VAT Input</option><option>5000 — Property &amp; Equipment</option><option>9000 — Accounts Payable</option><option>9100 — VAT Output</option><option>9200 — PAYE Payable</option><option>9210 — UIF Payable</option><option>7000 — Share Capital</option><option>7010 — Retained Earnings</option><option>1000 — Sales — Standard VAT</option><option>3000 — Interest Income</option><option>2000 — Cost of Sales</option><option>4000 — Salaries &amp; Wages</option><option>4010 — Rent &amp; Occupancy</option><option>4020 — Depreciation</option></select></td><td><input placeholder="Narration"></td><td><input type="number" class="jd tr" placeholder="0.00" oninput="calcJnl()"></td><td><input type="number" class="jc tr" placeholder="0.00" oninput="calcJnl()"></td></tr><tr><td><select style="min-width:220px"><option value="">Select account…</option><option>6000 — FNB Current Account</option><option>6010 — Nedbank Savings</option><option>6100 — Accounts Receivable</option><option>6200 — Inventory Asset</option><option>6300 — VAT Input</option><option>5000 — Property &amp; Equipment</option><option>9000 — Accounts Payable</option><option>9100 — VAT Output</option><option>9200 — PAYE Payable</option><option>9210 — UIF Payable</option><option>7000 — Share Capital</option><option>7010 — Retained Earnings</option><option>1000 — Sales — Standard VAT</option><option>3000 — Interest Income</option><option>2000 — Cost of Sales</option><option>4000 — Salaries &amp; Wages</option><option>4010 — Rent &amp; Occupancy</option><option>4020 — Depreciation</option></select></td><td><input placeholder="Narration"></td><td><input type="number" class="jd tr" placeholder="0.00" oninput="calcJnl()"></td><td><input type="number" class="jc tr" placeholder="0.00" oninput="calcJnl()"></td></tr>
         <tr class="tt"><td colspan="2">Totals</td><td class="tr" id="jn-dr">R 0.00</td><td class="tr" id="jn-cr">R 0.00</td></tr>
       </tbody></table>
       <div id="jn-st" style="margin-top:12px;font-size:13px;font-weight:700;color:var(--txm)">Enter debit and credit amounts</div>
@@ -471,7 +455,7 @@ body.locked .app{visibility:hidden}
   </div>
 
   <div id="cust-jbatch" style="display:none">
-    <div class="notice"><i class="ti ti-info-circle"></i> Post several customer adjustments at once. Each line posts against control account 1100 — Accounts Receivable and the contra account you choose. Bad-debt write-offs may need an output VAT adjustment (s22 VAT Act).</div>
+    <div class="notice"><i class="ti ti-info-circle"></i> Post several customer adjustments at once. Each line posts against control account 6100 — Accounts Receivable and the contra account you choose. Bad-debt write-offs may need an output VAT adjustment (s22 VAT Act).</div>
     <div class="card" style="margin-bottom:16px"><div class="card-title">New Customer Journal Batch</div>
       <div class="fr3"><div class="fg"><label>Batch Ref</label><input id="cb-ref" readonly></div><div class="fg"><label>Batch Date *</label><input type="date" id="cb-date" value="2025-03-31"></div><div class="fg"><label>Description *</label><input id="cb-desc" placeholder="e.g. March month-end adjustments"></div></div>
       
@@ -485,20 +469,20 @@ body.locked .app{visibility:hidden}
     </div>
   </div>
 <div id="cust-rlist" style="display:none"><div class="card"><div class="card-title"><span>Customer Listing <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Code</th><th>Customer</th><th>VAT No.</th><th>Terms</th><th class="tr">Credit Limit</th><th class="tr">Balance</th><th class="tr">Available</th></tr></thead><tbody><tr><td>CUST-001</td><td><strong>Woolworths Ltd</strong></td><td>4098765432</td><td>30 days</td><td class="tr">R 500,000</td><td class="tr">R 128,400</td><td class="tr">R 371,600</td></tr><tr><td>CUST-002</td><td><strong>Shoprite Holdings</strong></td><td>4087654321</td><td>30 days</td><td class="tr">R 300,000</td><td class="tr">R 84,200</td><td class="tr">R 215,800</td></tr><tr><td>CUST-003</td><td><strong>MTN Group</strong></td><td>4076543210</td><td>30 days</td><td class="tr">R 400,000</td><td class="tr">—</td><td class="tr">R 400,000</td></tr><tr><td>CUST-004</td><td><strong>Naspers Ltd</strong></td><td>4065432109</td><td>30 days</td><td class="tr">R 250,000</td><td class="tr">R 56,900</td><td class="tr">R 193,100</td></tr><tr><td>CUST-005</td><td><strong>Standard Bank</strong></td><td>4054321098</td><td>60 days</td><td class="tr">R 600,000</td><td class="tr">R 210,000</td><td class="tr">R 390,000</td></tr><tr class="tg"><td>Total</td><td></td><td></td><td></td><td class="tr">R 2,050,000</td><td class="tr">R 479,500</td><td class="tr">R 1,570,500</td></tr></tbody></table></div></div>
-<div id="cust-rsales" style="display:none"><div class="card"><div class="card-title"><span>Sales by Customer <span style="font-size:12px;font-weight:400;color:var(--txm)">March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Customer</th><th class="tr">Sales (Excl. VAT)</th><th class="tr">Output VAT 15%</th><th class="tr">Total Incl. VAT</th><th class="tr">% of Sales</th></tr></thead><tbody><tr><td>Woolworths Ltd</td><td class="tr">R 111,652</td><td class="tr">R 16,748</td><td class="tr">R 128,400</td><td class="tr">13.3%</td></tr><tr><td>Shoprite Holdings</td><td class="tr">R 73,217</td><td class="tr">R 10,983</td><td class="tr">R 84,200</td><td class="tr">8.7%</td></tr><tr><td>MTN Group</td><td class="tr">R 182,609</td><td class="tr">R 27,391</td><td class="tr">R 210,000</td><td class="tr">21.7%</td></tr><tr><td>Naspers Ltd</td><td class="tr">R 49,478</td><td class="tr">R 7,422</td><td class="tr">R 56,900</td><td class="tr">5.9%</td></tr><tr><td>Standard Bank</td><td class="tr">R 182,609</td><td class="tr">R 27,391</td><td class="tr">R 210,000</td><td class="tr">21.7%</td></tr><tr><td>Other customers (19)</td><td class="tr">R 243,035</td><td class="tr">R 36,455</td><td class="tr">R 279,490</td><td class="tr">28.8%</td></tr><tr class="tg"><td>Total (agrees to GL 4010)</td><td class="tr">R 842,600</td><td class="tr">R 126,390</td><td class="tr">R 968,990</td><td class="tr">100%</td></tr></tbody></table></div></div>
+<div id="cust-rsales" style="display:none"><div class="card"><div class="card-title"><span>Sales by Customer <span style="font-size:12px;font-weight:400;color:var(--txm)">March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Customer</th><th class="tr">Sales (Excl. VAT)</th><th class="tr">Output VAT 15%</th><th class="tr">Total Incl. VAT</th><th class="tr">% of Sales</th></tr></thead><tbody><tr><td>Woolworths Ltd</td><td class="tr">R 111,652</td><td class="tr">R 16,748</td><td class="tr">R 128,400</td><td class="tr">13.3%</td></tr><tr><td>Shoprite Holdings</td><td class="tr">R 73,217</td><td class="tr">R 10,983</td><td class="tr">R 84,200</td><td class="tr">8.7%</td></tr><tr><td>MTN Group</td><td class="tr">R 182,609</td><td class="tr">R 27,391</td><td class="tr">R 210,000</td><td class="tr">21.7%</td></tr><tr><td>Naspers Ltd</td><td class="tr">R 49,478</td><td class="tr">R 7,422</td><td class="tr">R 56,900</td><td class="tr">5.9%</td></tr><tr><td>Standard Bank</td><td class="tr">R 182,609</td><td class="tr">R 27,391</td><td class="tr">R 210,000</td><td class="tr">21.7%</td></tr><tr><td>Other customers (19)</td><td class="tr">R 243,035</td><td class="tr">R 36,455</td><td class="tr">R 279,490</td><td class="tr">28.8%</td></tr><tr class="tg"><td>Total (agrees to GL 1000)</td><td class="tr">R 842,600</td><td class="tr">R 126,390</td><td class="tr">R 968,990</td><td class="tr">100%</td></tr></tbody></table></div></div>
 <div id="cust-rreg" style="display:none"><div class="card"><div class="card-title"><span>Sales Invoice &amp; Credit Note Register <span style="font-size:12px;font-weight:400;color:var(--txm)">March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Date</th><th>Document</th><th>Customer</th><th>Type</th><th class="tr">Excl. VAT</th><th class="tr">VAT</th><th class="tr">Total</th></tr></thead><tbody><tr><td>15 Mar</td><td>CN-2025-008</td><td>Woolworths Ltd</td><td><span class="chip c-dn">Credit Note</span></td><td class="tr">(R 8,696)</td><td class="tr">(R 1,304)</td><td class="tr">(R 10,000)</td></tr><tr><td>12 Mar</td><td>SI-2025-041</td><td>Woolworths Ltd</td><td><span class="chip c-bl">Invoice</span></td><td class="tr">R 111,652</td><td class="tr">R 16,748</td><td class="tr">R 128,400</td></tr><tr><td>10 Mar</td><td>SI-2025-040</td><td>Shoprite Holdings</td><td><span class="chip c-bl">Invoice</span></td><td class="tr">R 73,217</td><td class="tr">R 10,983</td><td class="tr">R 84,200</td></tr><tr><td>05 Mar</td><td>SI-2025-039</td><td>MTN Group</td><td><span class="chip c-bl">Invoice</span></td><td class="tr">R 182,609</td><td class="tr">R 27,391</td><td class="tr">R 210,000</td></tr><tr><td>05 Mar</td><td>CN-2025-007</td><td>MTN Group</td><td><span class="chip c-dn">Credit Note</span></td><td class="tr">(R 4,348)</td><td class="tr">(R 652)</td><td class="tr">(R 5,000)</td></tr><tr><td>01 Mar</td><td>SI-2025-038</td><td>Naspers Ltd</td><td><span class="chip c-bl">Invoice</span></td><td class="tr">R 49,478</td><td class="tr">R 7,422</td><td class="tr">R 56,900</td></tr><tr class="tg"><td>Net total</td><td></td><td></td><td></td><td class="tr">R 403,912</td><td class="tr">R 60,588</td><td class="tr">R 464,500</td></tr></tbody></table></div></div>
 <div id="cust-rage" style="display:none"><div class="card"><div class="card-title"><span>Customer Age Analysis</span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportRep('cage','pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportRep('cage','xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button><button class="btn btn-s btn-sm" onclick="exportRep('cage','csv')"><i class="ti ti-file-text"></i> CSV</button></span></div>
   <div style="font-size:12px;color:var(--txm);margin-bottom:10px">Outstanding balances by age. Payments and credit notes are applied to the oldest documents first, and each remaining document is aged from its date to the “as at” date. Current is 0–30 days.</div>
   <div class="fr3" style="margin-bottom:10px"><div class="fg"><label>As at</label><input type="date" id="cage-asat" onchange="renderAge('cust')"></div><div class="fg"><label>Customer</label><select id="cage-who" onchange="renderAge('cust')"></select></div><div class="fg"><label>View</label><select id="cage-view" onchange="renderAge('cust')"><option value="sum">Summary — one line per customer</option><option value="det">Detailed — every open document</option></select></div></div>
   <label style="display:flex;gap:6px;align-items:center;font-weight:400;margin-bottom:10px"><input type="checkbox" id="cage-hide" style="width:auto" checked onchange="renderAge('cust')"> Hide customers with a zero balance</label>
   <div style="overflow-x:auto"><table><thead id="cage-h"></thead><tbody id="cage-b"></tbody></table></div></div></div>
-<div id="cust-rrec" style="display:none"><div class="card"><div class="card-title"><span>Debtors Control Reconciliation <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Item</th><th class="tr">Amount</th></tr></thead><tbody><tr><td>Total of customer balances (sub-ledger)</td><td class="tr">R 479,500</td></tr><tr><td>GL 1100 — Accounts Receivable</td><td class="tr">R 479,500</td></tr><tr class="tg"><td>Difference</td><td class="tr">R 0.00</td></tr></tbody></table><div style="margin-top:12px"><span class="chip c-ok">✓ Sub-ledger agrees to control account</span></div></div></div>
+<div id="cust-rrec" style="display:none"><div class="card"><div class="card-title"><span>Debtors Control Reconciliation <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Item</th><th class="tr">Amount</th></tr></thead><tbody><tr><td>Total of customer balances (sub-ledger)</td><td class="tr">R 479,500</td></tr><tr><td>GL 6100 — Accounts Receivable</td><td class="tr">R 479,500</td></tr><tr class="tg"><td>Difference</td><td class="tr">R 0.00</td></tr></tbody></table><div style="margin-top:12px"><span class="chip c-ok">✓ Sub-ledger agrees to control account</span></div></div></div>
 
   <div id="cust-jnl" style="display:none">
-    <div class="notice"><i class="ti ti-info-circle"></i> Customer journals adjust a customer account (interest, write-offs, corrections) and post against control account 1100 — Accounts Receivable. Bad-debt write-offs may require an output VAT adjustment (s22 VAT Act).</div>
+    <div class="notice"><i class="ti ti-info-circle"></i> Customer journals adjust a customer account (interest, write-offs, corrections) and post against control account 6100 — Accounts Receivable. Bad-debt write-offs may require an output VAT adjustment (s22 VAT Act).</div>
     <div class="card" style="margin-bottom:16px"><div class="card-title">New Customer Journal</div>
       <div class="fr3"><div class="fg"><label>Customer *</label><select><option>Woolworths Ltd</option><option>Shoprite Holdings</option><option>MTN Group</option><option>Naspers Ltd</option><option>Standard Bank</option></select></div><div class="fg"><label>Journal Date *</label><input type="date" value="2025-03-31"></div><div class="fg"><label>Journal Ref #</label><input value="CJ-2025-001" readonly></div></div>
-      <div class="fr3"><div class="fg"><label>Adjustment Type *</label><select id="cj-type" onchange="previewSubJnl('cj')"><option value="inc">Increase balance (debit customer)</option><option value="dec">Decrease balance (credit customer)</option></select></div><div class="fg"><label>Amount (ZAR) *</label><input type="number" id="cj-amt" placeholder="0.00" oninput="previewSubJnl('cj')"></div><div class="fg"><label>Contra GL Account *</label><select id="cj-contra" onchange="previewSubJnl('cj')"><option>5100 — Bad Debts Written Off</option><option>4030 — Interest Income</option><option>4010 — Sales — Standard VAT</option><option>5090 — Rounding / Sundry</option></select></div></div>
+      <div class="fr3"><div class="fg"><label>Adjustment Type *</label><select id="cj-type" onchange="previewSubJnl('cj')"><option value="inc">Increase balance (debit customer)</option><option value="dec">Decrease balance (credit customer)</option></select></div><div class="fg"><label>Amount (ZAR) *</label><input type="number" id="cj-amt" placeholder="0.00" oninput="previewSubJnl('cj')"></div><div class="fg"><label>Contra GL Account *</label><select id="cj-contra" onchange="previewSubJnl('cj')"><option>4080 — Bad Debts Written Off</option><option>3000 — Interest Income</option><option>1000 — Sales — Standard VAT</option><option>4070 — Rounding / Sundry</option></select></div></div>
       <div class="fg" style="margin-bottom:14px"><label>Narration *</label><input id="cj-nar" placeholder="Reason for adjustment"></div>
       <div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:8px">GL posting preview</div>
       <table><thead><tr><th>Account</th><th class="tr" style="width:150px">Debit</th><th class="tr" style="width:150px">Credit</th></tr></thead><tbody id="cj-prev"><tr><td colspan="3" style="color:var(--txm)">Enter an amount to preview the posting</td></tr></tbody></table>
@@ -513,7 +497,7 @@ body.locked .app{visibility:hidden}
     <div class="card">
       <div class="card-title">Capture Customer Receipt</div>
       <div class="fr"><div class="fg"><label>Customer *</label><select><option>Woolworths Ltd</option><option>Shoprite Holdings</option><option>Naspers Ltd</option><option>Standard Bank</option></select></div><div class="fg"><label>Receipt #</label><input value="RCP-2025-024" readonly></div></div>
-      <div class="fr3"><div class="fg"><label>Receipt Date *</label><input type="date" value="2025-03-31"></div><div class="fg"><label>Deposit To *</label><select><option>1010 — FNB Current Account</option><option>1020 — Nedbank Savings</option></select></div><div class="fg"><label>Method</label><select><option>EFT</option><option>Cash</option><option>Card</option><option>Cheque</option></select></div></div>
+      <div class="fr3"><div class="fg"><label>Receipt Date *</label><input type="date" value="2025-03-31"></div><div class="fg"><label>Deposit To *</label><select><option>6000 — FNB Current Account</option><option>6010 — Nedbank Savings</option></select></div><div class="fg"><label>Method</label><select><option>EFT</option><option>Cash</option><option>Card</option><option>Cheque</option></select></div></div>
       <div class="fr"><div class="fg"><label>Amount Received (ZAR) *</label><input type="number" id="rc-amt" placeholder="0.00" oninput="calcAlloc('rc')"></div><div class="fg"><label>Bank Reference</label><input placeholder="Reference on bank statement"></div></div>
       <hr>
       <div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:10px">Allocate to open invoices</div>
@@ -532,7 +516,7 @@ body.locked .app{visibility:hidden}
     <div class="g3" id="cust-enq-stats"></div>
     <div class="card"><table><thead><tr><th>Date</th><th>Reference</th><th>Description</th><th class="tr">Debit</th><th class="tr">Credit</th><th class="tr">Balance</th></tr></thead><tbody id="cust-enq-body"></tbody></table></div>
   </div>
-<div id="cust-aged" style="display:none"><div class="enq-export" style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px"><button class="btn btn-s btn-sm" onclick="exportPanel('cust-aged','Aged Debtors','pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportPanel('cust-aged','Aged Debtors','xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></div><div class="card"><div class="card-title">Aged Debtors <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025</span></div><table><thead><tr><th>Customer</th><th class="tr">Current</th><th class="tr">31–60 days</th><th class="tr">61–90 days</th><th class="tr">90+ days</th><th class="tr">Total</th></tr></thead><tbody><tr><td>Woolworths Ltd</td><td class="tr">—</td><td class="tr" style="color:var(--wn)">R 128,400</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 128,400</strong></td></tr><tr><td>Shoprite Holdings</td><td class="tr">R 84,200</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 84,200</strong></td></tr><tr><td>Naspers Ltd</td><td class="tr">R 56,900</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 56,900</strong></td></tr><tr><td>Standard Bank</td><td class="tr">R 210,000</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 210,000</strong></td></tr><tr><td>MTN Group</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 0</strong></td></tr><tr class="tg"><td>Total (agrees to GL 1100)</td><td class="tr">R 351,100</td><td class="tr">R 128,400</td><td class="tr">—</td><td class="tr">—</td><td class="tr">R 479,500</td></tr></tbody></table></div></div>
+<div id="cust-aged" style="display:none"><div class="enq-export" style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px"><button class="btn btn-s btn-sm" onclick="exportPanel('cust-aged','Aged Debtors','pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportPanel('cust-aged','Aged Debtors','xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></div><div class="card"><div class="card-title">Aged Debtors <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025</span></div><table><thead><tr><th>Customer</th><th class="tr">Current</th><th class="tr">31–60 days</th><th class="tr">61–90 days</th><th class="tr">90+ days</th><th class="tr">Total</th></tr></thead><tbody><tr><td>Woolworths Ltd</td><td class="tr">—</td><td class="tr" style="color:var(--wn)">R 128,400</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 128,400</strong></td></tr><tr><td>Shoprite Holdings</td><td class="tr">R 84,200</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 84,200</strong></td></tr><tr><td>Naspers Ltd</td><td class="tr">R 56,900</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 56,900</strong></td></tr><tr><td>Standard Bank</td><td class="tr">R 210,000</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 210,000</strong></td></tr><tr><td>MTN Group</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 0</strong></td></tr><tr class="tg"><td>Total (agrees to GL 6100)</td><td class="tr">R 351,100</td><td class="tr">R 128,400</td><td class="tr">—</td><td class="tr">—</td><td class="tr">R 479,500</td></tr></tbody></table></div></div>
 
 
   <!-- Customer List -->
@@ -673,7 +657,7 @@ body.locked .app{visibility:hidden}
 
 
   <div id="sup-jbatch" style="display:none">
-    <div class="notice"><i class="ti ti-info-circle"></i> Post several supplier adjustments at once. Each line posts against control account 2010 — Accounts Payable and the contra account you choose.</div>
+    <div class="notice"><i class="ti ti-info-circle"></i> Post several supplier adjustments at once. Each line posts against control account 9000 — Accounts Payable and the contra account you choose.</div>
     <div class="card" style="margin-bottom:16px"><div class="card-title">New Supplier Journal Batch</div>
       <div class="fr3"><div class="fg"><label>Batch Ref</label><input id="sb-ref" readonly></div><div class="fg"><label>Batch Date *</label><input type="date" id="sb-date" value="2025-03-31"></div><div class="fg"><label>Description *</label><input id="sb-desc" placeholder="e.g. March month-end adjustments"></div></div>
       
@@ -686,7 +670,7 @@ body.locked .app{visibility:hidden}
       <table><thead><tr><th>Batch Ref</th><th>Date</th><th>Description</th><th class="tr">Lines</th><th class="tr">Batch Total</th><th>Status</th><th>Action</th></tr></thead><tbody id="sb-list"></tbody></table>
     </div>
   </div>
-<div id="sup-rlist" style="display:none"><div class="card"><div class="card-title"><span>Supplier Listing <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Code</th><th>Supplier</th><th>VAT No.</th><th>Terms</th><th class="tr">Balance Owing</th></tr></thead><tbody><tr><td>SUP-001</td><td><strong>Bidvest Facilities</strong></td><td>4023456789</td><td>30 days</td><td class="tr">R 24,000</td></tr><tr><td>SUP-002</td><td><strong>Eskom Holdings</strong></td><td>4034567890</td><td>30 days</td><td class="tr">R 9,500</td></tr><tr><td>SUP-003</td><td><strong>Vodacom Business</strong></td><td>4045678901</td><td>30 days</td><td class="tr">R 5,000</td></tr><tr><td>SUP-004</td><td><strong>Massdiscounters</strong></td><td>4056789012</td><td>EOM</td><td class="tr">R 2,500</td></tr><tr><td>SUP-005</td><td><strong>Outsurance</strong></td><td>Exempt</td><td>Monthly</td><td class="tr">R 3,200</td></tr><tr><td>—</td><td>Other suppliers (13)</td><td>—</td><td>—</td><td class="tr">R 274,500</td></tr><tr class="tg"><td>Total (agrees to GL 2010)</td><td></td><td></td><td></td><td class="tr">R 318,700</td></tr></tbody></table></div></div>
+<div id="sup-rlist" style="display:none"><div class="card"><div class="card-title"><span>Supplier Listing <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Code</th><th>Supplier</th><th>VAT No.</th><th>Terms</th><th class="tr">Balance Owing</th></tr></thead><tbody><tr><td>SUP-001</td><td><strong>Bidvest Facilities</strong></td><td>4023456789</td><td>30 days</td><td class="tr">R 24,000</td></tr><tr><td>SUP-002</td><td><strong>Eskom Holdings</strong></td><td>4034567890</td><td>30 days</td><td class="tr">R 9,500</td></tr><tr><td>SUP-003</td><td><strong>Vodacom Business</strong></td><td>4045678901</td><td>30 days</td><td class="tr">R 5,000</td></tr><tr><td>SUP-004</td><td><strong>Massdiscounters</strong></td><td>4056789012</td><td>EOM</td><td class="tr">R 2,500</td></tr><tr><td>SUP-005</td><td><strong>Outsurance</strong></td><td>Exempt</td><td>Monthly</td><td class="tr">R 3,200</td></tr><tr><td>—</td><td>Other suppliers (13)</td><td>—</td><td>—</td><td class="tr">R 274,500</td></tr><tr class="tg"><td>Total (agrees to GL 9000)</td><td></td><td></td><td></td><td class="tr">R 318,700</td></tr></tbody></table></div></div>
 <div id="sup-rpur" style="display:none"><div class="card"><div class="card-title"><span>Purchases &amp; Input VAT by Supplier <span style="font-size:12px;font-weight:400;color:var(--txm)">March 2025 · s16(3) VAT Act</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Supplier</th><th>VAT No.</th><th class="tr">Purchases (Excl.)</th><th class="tr">Input VAT</th><th class="tr">Total</th><th>Input VAT Status</th></tr></thead><tbody><tr><td>Bidvest Facilities</td><td>4023456789</td><td class="tr">R 20,870</td><td class="tr">R 3,130</td><td class="tr">R 24,000</td><td><span class="chip c-ok">Claimable</span></td></tr><tr><td>Eskom Holdings</td><td>4034567890</td><td class="tr">R 8,261</td><td class="tr">R 1,239</td><td class="tr">R 9,500</td><td><span class="chip c-ok">Claimable</span></td></tr><tr><td>Vodacom Business</td><td>4045678901</td><td class="tr">R 4,348</td><td class="tr">R 652</td><td class="tr">R 5,000</td><td><span class="chip c-ok">Claimable</span></td></tr><tr><td>Massdiscounters</td><td>4056789012</td><td class="tr">R 2,174</td><td class="tr">R 326</td><td class="tr">R 2,500</td><td><span class="chip c-ok">Claimable</span></td></tr><tr><td>Nedbank Finance</td><td>—</td><td class="tr">R 1,200</td><td class="tr">—</td><td class="tr">R 1,200</td><td><span class="chip c-gr">Exempt</span></td></tr><tr><td>Outsurance</td><td>—</td><td class="tr">R 3,200</td><td class="tr">—</td><td class="tr">R 3,200</td><td><span class="chip c-gr">Exempt</span></td></tr><tr class="tg"><td>Total</td><td></td><td class="tr">R 40,053</td><td class="tr">R 5,347</td><td class="tr">R 45,400</td><td></td></tr></tbody></table></div></div>
 <div id="sup-rreg" style="display:none"><div class="card"><div class="card-title"><span>Invoice &amp; Debit Note Register <span style="font-size:12px;font-weight:400;color:var(--txm)">March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Date</th><th>Document</th><th>Supplier</th><th>Type</th><th class="tr">Excl. VAT</th><th class="tr">Input VAT</th><th class="tr">Total</th></tr></thead><tbody><tr><td>10 Mar</td><td>DN-2025-003</td><td>Bidvest Facilities</td><td><span class="chip c-wn">Debit Note</span></td><td class="tr">(R 2,174)</td><td class="tr">(R 326)</td><td class="tr">(R 2,500)</td></tr><tr><td>08 Mar</td><td>PI-2025-019</td><td>Massdiscounters</td><td><span class="chip c-bl">Invoice</span></td><td class="tr">R 2,174</td><td class="tr">R 326</td><td class="tr">R 2,500</td></tr><tr><td>05 Mar</td><td>PI-2025-021</td><td>Eskom Holdings</td><td><span class="chip c-bl">Invoice</span></td><td class="tr">R 8,261</td><td class="tr">R 1,239</td><td class="tr">R 9,500</td></tr><tr><td>02 Mar</td><td>DN-2025-002</td><td>Massdiscounters</td><td><span class="chip c-wn">Debit Note</span></td><td class="tr">(R 1,304)</td><td class="tr">(R 196)</td><td class="tr">(R 1,500)</td></tr><tr><td>01 Mar</td><td>PI-2025-022</td><td>Bidvest Facilities</td><td><span class="chip c-bl">Invoice</span></td><td class="tr">R 20,870</td><td class="tr">R 3,130</td><td class="tr">R 24,000</td></tr><tr><td>01 Mar</td><td>PI-2025-020</td><td>Vodacom Business</td><td><span class="chip c-bl">Invoice</span></td><td class="tr">R 4,348</td><td class="tr">R 652</td><td class="tr">R 5,000</td></tr><tr class="tg"><td>Net total</td><td></td><td></td><td></td><td class="tr">R 32,175</td><td class="tr">R 4,825</td><td class="tr">R 37,000</td></tr></tbody></table></div></div>
 <div id="sup-rage" style="display:none"><div class="card"><div class="card-title"><span>Supplier Age Analysis</span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportRep('sage','pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportRep('sage','xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button><button class="btn btn-s btn-sm" onclick="exportRep('sage','csv')"><i class="ti ti-file-text"></i> CSV</button></span></div>
@@ -694,13 +678,13 @@ body.locked .app{visibility:hidden}
   <div class="fr3" style="margin-bottom:10px"><div class="fg"><label>As at</label><input type="date" id="sage-asat" onchange="renderAge('sup')"></div><div class="fg"><label>Supplier</label><select id="sage-who" onchange="renderAge('sup')"></select></div><div class="fg"><label>View</label><select id="sage-view" onchange="renderAge('sup')"><option value="sum">Summary — one line per supplier</option><option value="det">Detailed — every open document</option></select></div></div>
   <label style="display:flex;gap:6px;align-items:center;font-weight:400;margin-bottom:10px"><input type="checkbox" id="sage-hide" style="width:auto" checked onchange="renderAge('sup')"> Hide suppliers with a zero balance</label>
   <div style="overflow-x:auto"><table><thead id="sage-h"></thead><tbody id="sage-b"></tbody></table></div></div></div>
-<div id="sup-rrec" style="display:none"><div class="card"><div class="card-title"><span>Creditors Control Reconciliation <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Item</th><th class="tr">Amount</th></tr></thead><tbody><tr><td>Total of supplier balances (sub-ledger)</td><td class="tr">R 318,700</td></tr><tr><td>GL 2010 — Accounts Payable</td><td class="tr">R 318,700</td></tr><tr class="tg"><td>Difference</td><td class="tr">R 0.00</td></tr></tbody></table><div style="margin-top:12px"><span class="chip c-ok">✓ Sub-ledger agrees to control account</span></div></div></div>
+<div id="sup-rrec" style="display:none"><div class="card"><div class="card-title"><span>Creditors Control Reconciliation <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Item</th><th class="tr">Amount</th></tr></thead><tbody><tr><td>Total of supplier balances (sub-ledger)</td><td class="tr">R 318,700</td></tr><tr><td>GL 9000 — Accounts Payable</td><td class="tr">R 318,700</td></tr><tr class="tg"><td>Difference</td><td class="tr">R 0.00</td></tr></tbody></table><div style="margin-top:12px"><span class="chip c-ok">✓ Sub-ledger agrees to control account</span></div></div></div>
 
   <div id="sup-jnl" style="display:none">
-    <div class="notice"><i class="ti ti-info-circle"></i> Supplier journals adjust a supplier account (corrections, settlement discounts, reclassifications) and post against control account 2010 — Accounts Payable.</div>
+    <div class="notice"><i class="ti ti-info-circle"></i> Supplier journals adjust a supplier account (corrections, settlement discounts, reclassifications) and post against control account 9000 — Accounts Payable.</div>
     <div class="card" style="margin-bottom:16px"><div class="card-title">New Supplier Journal</div>
       <div class="fr3"><div class="fg"><label>Supplier *</label><select><option>Bidvest Facilities</option><option>Eskom Holdings</option><option>Vodacom Business</option><option>Massdiscounters</option><option>Outsurance</option></select></div><div class="fg"><label>Journal Date *</label><input type="date" value="2025-03-31"></div><div class="fg"><label>Journal Ref #</label><input value="SJ-2025-001" readonly></div></div>
-      <div class="fr3"><div class="fg"><label>Adjustment Type *</label><select id="sj-type" onchange="previewSubJnl('sj')"><option value="inc">Increase amount owing (credit supplier)</option><option value="dec">Decrease amount owing (debit supplier)</option></select></div><div class="fg"><label>Amount (ZAR) *</label><input type="number" id="sj-amt" placeholder="0.00" oninput="previewSubJnl('sj')"></div><div class="fg"><label>Contra GL Account *</label><select id="sj-contra" onchange="previewSubJnl('sj')"><option>5010 — Cost of Sales</option><option>5090 — Insurance</option><option>5080 — Bank Charges</option><option>5090 — Rounding / Sundry</option></select></div></div>
+      <div class="fr3"><div class="fg"><label>Adjustment Type *</label><select id="sj-type" onchange="previewSubJnl('sj')"><option value="inc">Increase amount owing (credit supplier)</option><option value="dec">Decrease amount owing (debit supplier)</option></select></div><div class="fg"><label>Amount (ZAR) *</label><input type="number" id="sj-amt" placeholder="0.00" oninput="previewSubJnl('sj')"></div><div class="fg"><label>Contra GL Account *</label><select id="sj-contra" onchange="previewSubJnl('sj')"><option>2000 — Cost of Sales</option><option>4070 — Insurance</option><option>4060 — Bank Charges</option><option>4070 — Rounding / Sundry</option></select></div></div>
       <div class="fg" style="margin-bottom:14px"><label>Narration *</label><input id="sj-nar" placeholder="Reason for adjustment"></div>
       <div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:8px">GL posting preview</div>
       <table><thead><tr><th>Account</th><th class="tr" style="width:150px">Debit</th><th class="tr" style="width:150px">Credit</th></tr></thead><tbody id="sj-prev"><tr><td colspan="3" style="color:var(--txm)">Enter an amount to preview the posting</td></tr></tbody></table>
@@ -717,7 +701,7 @@ body.locked .app{visibility:hidden}
     <div class="g3" id="sup-enq-stats"></div>
     <div class="card"><table><thead><tr><th>Date</th><th>Reference</th><th>Description</th><th class="tr">Debit</th><th class="tr">Credit</th><th class="tr">Balance Owing</th></tr></thead><tbody id="sup-enq-body"></tbody></table></div>
   </div>
-<div id="sup-aged" style="display:none"><div class="enq-export" style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px"><button class="btn btn-s btn-sm" onclick="exportPanel('sup-aged','Aged Creditors','pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportPanel('sup-aged','Aged Creditors','xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></div><div class="card"><div class="card-title">Aged Creditors <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025</span></div><table><thead><tr><th>Supplier</th><th class="tr">Current</th><th class="tr">31–60 days</th><th class="tr">61–90 days</th><th class="tr">90+ days</th><th class="tr">Total</th></tr></thead><tbody><tr><td>Bidvest Facilities</td><td class="tr">—</td><td class="tr" style="color:var(--wn)">R 24,000</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 24,000</strong></td></tr><tr><td>Eskom Holdings</td><td class="tr">R 9,500</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 9,500</strong></td></tr><tr><td>Vodacom Business</td><td class="tr">R 5,000</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 5,000</strong></td></tr><tr><td>Massdiscounters</td><td class="tr">R 2,500</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 2,500</strong></td></tr><tr><td>Outsurance</td><td class="tr">R 3,200</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 3,200</strong></td></tr><tr><td>Other suppliers (13)</td><td class="tr">R 274,500</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 274,500</strong></td></tr><tr class="tg"><td>Total (agrees to GL 2010)</td><td class="tr">R 294,700</td><td class="tr">R 24,000</td><td class="tr">—</td><td class="tr">—</td><td class="tr">R 318,700</td></tr></tbody></table></div></div>
+<div id="sup-aged" style="display:none"><div class="enq-export" style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px"><button class="btn btn-s btn-sm" onclick="exportPanel('sup-aged','Aged Creditors','pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportPanel('sup-aged','Aged Creditors','xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></div><div class="card"><div class="card-title">Aged Creditors <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025</span></div><table><thead><tr><th>Supplier</th><th class="tr">Current</th><th class="tr">31–60 days</th><th class="tr">61–90 days</th><th class="tr">90+ days</th><th class="tr">Total</th></tr></thead><tbody><tr><td>Bidvest Facilities</td><td class="tr">—</td><td class="tr" style="color:var(--wn)">R 24,000</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 24,000</strong></td></tr><tr><td>Eskom Holdings</td><td class="tr">R 9,500</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 9,500</strong></td></tr><tr><td>Vodacom Business</td><td class="tr">R 5,000</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 5,000</strong></td></tr><tr><td>Massdiscounters</td><td class="tr">R 2,500</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 2,500</strong></td></tr><tr><td>Outsurance</td><td class="tr">R 3,200</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 3,200</strong></td></tr><tr><td>Other suppliers (13)</td><td class="tr">R 274,500</td><td class="tr">—</td><td class="tr">—</td><td class="tr">—</td><td class="tr"><strong>R 274,500</strong></td></tr><tr class="tg"><td>Total (agrees to GL 9000)</td><td class="tr">R 294,700</td><td class="tr">R 24,000</td><td class="tr">—</td><td class="tr">—</td><td class="tr">R 318,700</td></tr></tbody></table></div></div>
 
 
   <!-- Supplier List -->
@@ -760,20 +744,20 @@ body.locked .app{visibility:hidden}
 ══════════════════════════════════════ -->
 <div class="page" id="page-inventory">
   <div class="page-title">Inventory</div>
-  <div class="page-sub">Manage stock categories &amp; items — linked to GL account 1150</div>
+  <div class="page-sub">Manage stock categories &amp; items — linked to GL account 6200</div>
   <div class="sec-bar" id="secbar-inventory"><div class="sec-btn active" data-sec="maint" onclick="secGo('inventory','maint')"><i class="ti ti-settings"></i> Maintenance</div><div class="sec-btn" data-sec="trans" onclick="secGo('inventory','trans')"><i class="ti ti-arrows-exchange"></i> Transactions</div><div class="sec-btn" data-sec="enq" onclick="secGo('inventory','enq')"><i class="ti ti-search"></i> Enquiries</div><div class="sec-btn" data-sec="rep" onclick="secGo('inventory','rep')"><i class="ti ti-chart-bar"></i> Reports</div></div>
   <div class="stab-bar" id="stabbar-inventory"><div class="stab active" data-p="inv" data-t="items" data-sec="maint" onclick="stab('inv','items',this)"><i class="ti ti-box"></i> Inventory Items</div><div class="stab" data-p="inv" data-t="cats" data-sec="maint" onclick="stab('inv','cats',this)"><i class="ti ti-category"></i> Categories</div><div class="stab" data-p="inv" data-t="addcat" data-sec="maint" onclick="stab('inv','addcat',this)"><i class="ti ti-folder-plus"></i> Add Category</div><div class="stab" data-p="inv" data-t="additem" data-sec="maint" onclick="stab('inv','additem',this)"><i class="ti ti-plus"></i> Add Item</div><div class="stab" style="display:none" data-p="inv" data-t="adj" data-sec="trans" onclick="stab('inv','adj',this)"><i class="ti ti-adjustments-horizontal"></i> Stock Adjustments</div><div class="stab" style="display:none" data-p="inv" data-t="take" data-sec="trans" onclick="stab('inv','take',this)"><i class="ti ti-clipboard-check"></i> Stock Take</div><div class="stab" style="display:none" data-p="inv" data-t="preq" data-sec="trans" onclick="stab('inv','preq',this)"><i class="ti ti-package-export"></i> Part Requests</div><div class="stab" style="display:none" data-p="inv" data-t="pret" data-sec="trans" onclick="stab('inv','pret',this)"><i class="ti ti-package-import"></i> Part Returns</div><div class="stab" style="display:none" data-p="inv" data-t="card" data-sec="enq" onclick="stab('inv','card',this)"><i class="ti ti-zoom-money"></i> Item Enquiry</div><div class="stab" style="display:none" data-p="inv" data-t="val" data-sec="enq" onclick="stab('inv','val',this)"><i class="ti ti-coin"></i> Stock Valuation</div><div class="stab" style="display:none" data-p="inv" data-t="low" data-sec="enq" onclick="stab('inv','low',this)"><i class="ti ti-alert-triangle"></i> Reorder Report</div><div class="stab" style="display:none" data-p="inv" data-t="rlist" data-sec="rep" onclick="stab('inv','rlist',this)"><i class="ti ti-list"></i> Stock on Hand</div><div class="stab" style="display:none" data-p="inv" data-t="rmov" data-sec="rep" onclick="stab('inv','rmov',this)"><i class="ti ti-arrows-exchange"></i> Stock Movement</div><div class="stab" style="display:none" data-p="inv" data-t="rmar" data-sec="rep" onclick="stab('inv','rmar',this)"><i class="ti ti-percentage"></i> Margin Analysis</div><div class="stab" style="display:none" data-p="inv" data-t="rrec" data-sec="rep" onclick="stab('inv','rrec',this)"><i class="ti ti-scale"></i> Inventory Control Rec</div></div>
 
 <div id="inv-rlist" style="display:none"><div class="card"><div class="card-title"><span>Stock on Hand Listing <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025 · at cost</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>SKU</th><th>Item</th><th class="tr">Qty on Hand</th><th class="tr">Unit Cost</th><th class="tr">Value</th></tr></thead><tbody id="ir-list-body"></tbody></table></div></div>
 <div id="inv-rmov" style="display:none"><div class="card"><div class="card-title"><span>Stock Movement Summary <span style="font-size:12px;font-weight:400;color:var(--txm)">March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>SKU</th><th>Item</th><th class="tr">Opening</th><th class="tr">Received</th><th class="tr">Issued</th><th class="tr">Closing</th><th class="tr">Closing Value</th></tr></thead><tbody id="ir-mov-body"></tbody></table></div></div>
 <div id="inv-rmar" style="display:none"><div class="card"><div class="card-title"><span>Item Margin Analysis <span style="font-size:12px;font-weight:400;color:var(--txm)">Selling price vs cost (Excl. VAT)</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>SKU</th><th>Item</th><th class="tr">Unit Cost</th><th class="tr">Sell Price</th><th class="tr">Margin (R)</th><th class="tr">Margin %</th></tr></thead><tbody id="ir-mar-body"></tbody></table></div></div>
-<div id="inv-rrec" style="display:none"><div class="card"><div class="card-title"><span>Inventory Control Reconciliation <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Item</th><th class="tr">Amount</th></tr></thead><tbody><tr><td>Total stock valuation (42 items, sub-ledger)</td><td class="tr">R 86,400</td></tr><tr><td>GL 1150 — Inventory Asset</td><td class="tr">R 86,400</td></tr><tr class="tg"><td>Difference</td><td class="tr">R 0.00</td></tr></tbody></table><div style="margin-top:12px"><span class="chip c-ok">✓ Stock valuation agrees to control account</span></div></div></div>
+<div id="inv-rrec" style="display:none"><div class="card"><div class="card-title"><span>Inventory Control Reconciliation <span style="font-size:12px;font-weight:400;color:var(--txm)">As at 31 March 2025</span></span><span style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="exportDom(this,'pdf')"><i class="ti ti-file-type-pdf"></i> PDF</button><button class="btn btn-s btn-sm" onclick="exportDom(this,'xlsx')"><i class="ti ti-file-spreadsheet"></i> Excel</button></span></div><table><thead><tr><th>Item</th><th class="tr">Amount</th></tr></thead><tbody><tr><td>Total stock valuation (42 items, sub-ledger)</td><td class="tr">R 86,400</td></tr><tr><td>GL 6200 — Inventory Asset</td><td class="tr">R 86,400</td></tr><tr class="tg"><td>Difference</td><td class="tr">R 0.00</td></tr></tbody></table><div style="margin-top:12px"><span class="chip c-ok">✓ Stock valuation agrees to control account</span></div></div></div>
 
   <div id="inv-adj" style="display:none">
     <div class="card" style="margin-bottom:16px"><div class="card-title">New Stock Adjustment <button class="btn btn-s btn-sm" onclick="openImport('adj')"><i class="ti ti-upload"></i> Import</button></div>
       <div class="fr3"><div class="fg"><label>Item *</label><select class="stk-opts" id="adj-item" onchange="previewAdj()"></select></div><div class="fg"><label>Adjustment Type *</label><select id="adj-type" onchange="previewAdj()"><option value="dec">Decrease — damaged / lost / expired</option><option value="inc">Increase — stock found / correction</option></select></div><div class="fg"><label>Quantity *</label><input type="number" id="adj-qty" placeholder="0" oninput="previewAdj()"></div></div>
       <div class="fr"><div class="fg"><label>Reason *</label><input id="adj-reason" placeholder="e.g. Water damage in storeroom"></div><div class="fg"><label>Adjustment Ref</label><input value="SA-2025-001" readonly></div></div>
-      <div class="fr"><div class="fg"><label>GL account to post to *</label><select id="adj-gl" onchange="previewAdj()"></select></div><div class="fg"><label>&nbsp;</label><span style="font-size:12px;color:var(--txm)">The other side of the posting is 1150 — Inventory Asset.</span></div></div>
+      <div class="fr"><div class="fg"><label>GL account to post to *</label><select id="adj-gl" onchange="previewAdj()"></select></div><div class="fg"><label>&nbsp;</label><span style="font-size:12px;color:var(--txm)">The other side of the posting is 6200 — Inventory Asset.</span></div></div>
       <div id="adj-warn" style="font-size:12px;color:var(--dn);margin-bottom:8px"></div>
       <div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:8px">GL posting preview (at cost)</div>
       <table><thead><tr><th>Account</th><th class="tr" style="width:150px">Debit</th><th class="tr" style="width:150px">Credit</th></tr></thead><tbody id="adj-prev"><tr><td colspan="3" style="color:var(--txm)">Select an item and quantity to preview the posting</td></tr></tbody></table>
@@ -811,7 +795,7 @@ body.locked .app{visibility:hidden}
         <tr><td>Stationery &amp; Supplies</td><td class="tr">18</td><td class="tr">R 12,400</td><td class="tr">14.4%</td></tr>
         <tr><td>Cleaning Supplies</td><td class="tr">3</td><td class="tr">R 7,200</td><td class="tr">8.3%</td></tr>
         <tr><td>Safety Equipment</td><td class="tr">1</td><td class="tr">R 3,500</td><td class="tr">4.0%</td></tr>
-        <tr class="tg"><td>Total (agrees to GL 1150)</td><td class="tr">42</td><td class="tr">R 86,400</td><td class="tr">100%</td></tr>
+        <tr class="tg"><td>Total (agrees to GL 6200)</td><td class="tr">42</td><td class="tr">R 86,400</td><td class="tr">100%</td></tr>
       </tbody></table>
     </div>
   </div>
@@ -879,22 +863,23 @@ body.locked .app{visibility:hidden}
   <div id="inv-additem" style="display:none">
     <div class="card">
       <div class="card-title">Add Inventory Item</div>
-      <div class="fr"><div class="fg"><label>Item Name *</label><input placeholder="e.g. HP LaserJet Pro M404n"></div><div class="fg"><label>SKU / Item Code</label><input placeholder="e.g. OE-003"></div></div>
-      <div class="fr"><div class="fg"><label>Category *</label><select id="ai-cat"></select></div><div class="fg"><label>Supplier (default)</label><select><option>Bidvest Facilities</option><option>Eskom Holdings</option><option>Vodacom Business</option><option>Massdiscounters</option></select></div></div>
+      <div class="fr"><div class="fg"><label>Item Name *</label><input id="ai-name" maxlength="80" placeholder="e.g. HP LaserJet Pro M404n"></div><div class="fg"><label>SKU / Item Code *</label><input id="ai-sku" maxlength="20" placeholder="e.g. OE-003"></div></div>
+      <div class="fr"><div class="fg"><label>Category *</label><select id="ai-cat"></select></div><div class="fg"><label>Supplier (default)</label><select id="ai-sup"></select></div></div>
       <div class="fr4">
-        <div class="fg"><label>Unit of Measure</label><select><option>Each</option><option>Box</option><option>Ream</option><option>Pack</option><option>Litre</option><option>Kg</option><option>Metre</option></select></div>
-        <div class="fg"><label>Cost Price (Excl.)</label><input type="number" placeholder="0.00"></div>
-        <div class="fg"><label>Sell Price (Excl.)</label><input type="number" placeholder="0.00"></div>
-        <div class="fg"><label>VAT on Sales</label><select><option>Standard 15%</option><option>Zero-Rated 0%</option><option>Exempt</option></select></div>
+        <div class="fg"><label>Unit of Measure</label><select id="ai-unit"><option>Each</option><option>Box</option><option>Ream</option><option>Pack</option><option>Litre</option><option>Kg</option><option>Metre</option></select></div>
+        <div class="fg"><label>Cost Price (Excl.) *</label><input id="ai-cost" type="number" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="fg"><label>Sell Price (Excl.)</label><input id="ai-sell" type="number" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="fg"><label>VAT on Sales</label><select id="ai-vat"><option>Standard 15%</option><option>Zero-Rated 0%</option><option>Exempt</option></select></div>
       </div>
       <div class="fr4">
-        <div class="fg"><label>Opening Stock Qty</label><input type="number" placeholder="0"></div>
-        <div class="fg"><label>Reorder Level</label><input type="number" placeholder="e.g. 5"></div>
-        <div class="fg"><label>Reorder Qty</label><input type="number" placeholder="e.g. 20"></div>
-        <div class="fg"><label>Bin / Location</label><input placeholder="e.g. Shelf A3"></div>
+        <div class="fg"><label>Opening Stock Qty</label><input id="ai-open" type="number" min="0" step="1" placeholder="0"></div>
+        <div class="fg"><label>Reorder Level</label><input id="ai-reo" type="number" min="0" placeholder="e.g. 5"></div>
+        <div class="fg"><label>Reorder Qty</label><input id="ai-roq" type="number" min="0" placeholder="e.g. 20"></div>
+        <div class="fg"><label>Bin / Location</label><input id="ai-bin" maxlength="40" placeholder="e.g. Shelf A3"></div>
       </div>
-      <div class="fr"><div class="fg"><label>Barcode / EAN</label><input placeholder="Optional barcode"></div><div class="fg"><label>Notes</label><input placeholder="Optional"></div></div>
-      <div class="btn-grp"><button class="btn btn-p" onclick="alert('Inventory item saved.')"><i class="ti ti-device-floppy"></i> Save Item</button><button class="btn btn-s">Cancel</button></div>
+      <div class="fr"><div class="fg"><label>Barcode / EAN</label><input id="ai-bar" maxlength="30" placeholder="Optional barcode"></div><div class="fg"><label>Notes</label><input id="ai-notes" maxlength="120" placeholder="Optional"></div></div>
+      <div class="form-err" id="ai-err"></div>
+      <div class="btn-grp"><button class="btn btn-p" onclick="saveInvItem()"><i class="ti ti-device-floppy"></i> Save Item</button><button class="btn btn-s" onclick="resetInvItem()">Clear</button></div>
     </div>
   </div>
 </div>
@@ -975,7 +960,7 @@ body.locked .app{visibility:hidden}
         <table><thead><tr><th>Description</th><th>Expense Account</th><th class="tr">Excl. VAT</th><th>VAT Type</th><th class="tr">VAT</th><th class="tr">Total</th></tr></thead>
           <tbody><tr>
             <td><input id="si-desc" placeholder="Goods / services received" style="width:100%"></td>
-            <td><select id="si-acc" style="min-width:140px"><option>5010 — Cost of Sales</option><option>5030 — Rent</option><option>5050 — Utilities</option><option>5060 — Telecoms</option><option>5070 — Office Supplies</option></select></td>
+            <td><select id="si-acc" style="min-width:140px"><option>2000 — Cost of Sales</option><option>4010 — Rent</option><option>4030 — Utilities</option><option>4040 — Telecoms</option><option>4050 — Office Supplies</option></select></td>
             <td><input type="number" id="si-amt" placeholder="0.00" class="tr" style="width:100px" oninput="calcSup()"></td>
             <td><select id="si-vat" onchange="calcSup()"><option value="15">Standard 15%</option><option value="0">Zero-Rated</option><option value="e">Exempt</option></select></td>
             <td class="tr" id="si-vt">R 0.00</td>
@@ -1147,7 +1132,7 @@ body.locked .app{visibility:hidden}
         <div class="rr" style="border:none"><div class="rr-name" style="font-weight:700">Adjusted Balance</div><div class="rr-val">R 477,800</div></div>
       </div>
       <div class="card">
-        <div class="card-title">Book Balance (GL 1010)</div>
+        <div class="card-title">Book Balance (GL 6000)</div>
         <div style="font-size:26px;font-weight:700;margin:10px 0">R 477,800</div>
         <div class="pb"><div class="pb-f" style="width:100%;background:var(--ok)"></div></div>
         <div style="font-size:12px;color:var(--ok);margin-top:8px"><i class="ti ti-circle-check"></i> Fully Reconciled — Difference: R 0.00</div>
@@ -1333,40 +1318,40 @@ body.locked .app{visibility:hidden}
       <thead><tr><th style="width:72px">Code</th><th>Account Name</th><th>Type</th><th class="tr" style="width:140px">Debit</th><th class="tr" style="width:140px">Credit</th></tr></thead>
       <tbody>
         <tr class="ts"><td colspan="5">Assets</td></tr>
-        <tr data-nz="1"><td>1010</td><td>FNB Current Account</td><td>Bank</td><td class="tr">R 412,000</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>1020</td><td>Nedbank Savings</td><td>Bank</td><td class="tr">R 95,200</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>1100</td><td>Accounts Receivable</td><td>Current Asset</td><td class="tr">R 479,500</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>1150</td><td>Inventory Asset</td><td>Current Asset</td><td class="tr">R 86,400</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>1200</td><td>VAT Input (Claimable)</td><td>Tax Asset</td><td class="tr">R 62,400</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="0"><td>1300</td><td>Inventory</td><td>Current Asset</td><td class="tr" style="color:var(--txm)">—</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>1500</td><td>Property &amp; Equipment</td><td>Fixed Asset</td><td class="tr">R 1,240,000</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>1510</td><td>Accumulated Depreciation</td><td>Contra Asset</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 18,600</td></tr>
+        <tr data-nz="1"><td>6000</td><td>FNB Current Account</td><td>Bank</td><td class="tr">R 412,000</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>6010</td><td>Nedbank Savings</td><td>Bank</td><td class="tr">R 95,200</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>6100</td><td>Accounts Receivable</td><td>Current Asset</td><td class="tr">R 479,500</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>6200</td><td>Inventory Asset</td><td>Current Asset</td><td class="tr">R 86,400</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>6300</td><td>VAT Input (Claimable)</td><td>Tax Asset</td><td class="tr">R 62,400</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="0"><td>6220</td><td>Inventory</td><td>Current Asset</td><td class="tr" style="color:var(--txm)">—</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>5000</td><td>Property &amp; Equipment</td><td>Fixed Asset</td><td class="tr">R 1,240,000</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>5010</td><td>Accumulated Depreciation</td><td>Contra Asset</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 18,600</td></tr>
         <tr class="tt"><td colspan="3" style="padding-left:20px;font-size:12px;color:var(--txm)">Subtotal — Assets</td><td class="tr">R 2,375,500</td><td class="tr">R 18,600</td></tr>
         <tr class="ts"><td colspan="5">Liabilities</td></tr>
-        <tr data-nz="1"><td>2010</td><td>Accounts Payable</td><td>Current Liability</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 318,700</td></tr>
-        <tr data-nz="1"><td>2100</td><td>VAT Output (Payable)</td><td>Tax Liability</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 94,860</td></tr>
-        <tr data-nz="1"><td>2200</td><td>PAYE Payable</td><td>Tax Liability</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 38,240</td></tr>
-        <tr data-nz="1"><td>2300</td><td>UIF Payable</td><td>Tax Liability</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 4,120</td></tr>
+        <tr data-nz="1"><td>9000</td><td>Accounts Payable</td><td>Current Liability</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 318,700</td></tr>
+        <tr data-nz="1"><td>9100</td><td>VAT Output (Payable)</td><td>Tax Liability</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 94,860</td></tr>
+        <tr data-nz="1"><td>9200</td><td>PAYE Payable</td><td>Tax Liability</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 38,240</td></tr>
+        <tr data-nz="1"><td>9210</td><td>UIF Payable</td><td>Tax Liability</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 4,120</td></tr>
         <tr class="tt"><td colspan="3" style="padding-left:20px;font-size:12px;color:var(--txm)">Subtotal — Liabilities</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 455,920</td></tr>
         <tr class="ts"><td colspan="5">Equity</td></tr>
-        <tr data-nz="1"><td>3010</td><td>Share Capital</td><td>Equity</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 1,000,000</td></tr>
-        <tr data-nz="1"><td>3020</td><td>Retained Earnings</td><td>Equity</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 586,580</td></tr>
+        <tr data-nz="1"><td>7000</td><td>Share Capital</td><td>Equity</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 1,000,000</td></tr>
+        <tr data-nz="1"><td>7010</td><td>Retained Earnings</td><td>Equity</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 586,580</td></tr>
         <tr class="tt"><td colspan="3" style="padding-left:20px;font-size:12px;color:var(--txm)">Subtotal — Equity</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 1,586,580</td></tr>
         <tr class="ts"><td colspan="5">Income</td></tr>
-        <tr data-nz="1"><td>4010</td><td>Sales — Standard VAT</td><td>Income</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 842,600</td></tr>
-        <tr data-nz="0"><td>4020</td><td>Sales — Zero Rated</td><td>Income</td><td class="tr" style="color:var(--txm)">—</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>4030</td><td>Interest Income</td><td>Income</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 8,400</td></tr>
+        <tr data-nz="1"><td>1000</td><td>Sales — Standard VAT</td><td>Income</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 842,600</td></tr>
+        <tr data-nz="0"><td>1010</td><td>Sales — Zero Rated</td><td>Income</td><td class="tr" style="color:var(--txm)">—</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>3000</td><td>Interest Income</td><td>Income</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 8,400</td></tr>
         <tr class="tt"><td colspan="3" style="padding-left:20px;font-size:12px;color:var(--txm)">Subtotal — Income</td><td class="tr" style="color:var(--txm)">—</td><td class="tr">R 851,000</td></tr>
         <tr class="ts"><td colspan="5">Expenses</td></tr>
-        <tr data-nz="1"><td>5010</td><td>Cost of Sales</td><td>Expense</td><td class="tr">R 380,200</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>5020</td><td>Salaries &amp; Wages</td><td>Expense</td><td class="tr">R 92,400</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>5030</td><td>Rent &amp; Occupancy</td><td>Expense</td><td class="tr">R 24,000</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>5040</td><td>Depreciation</td><td>Expense</td><td class="tr">R 18,600</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>5050</td><td>Utilities</td><td>Expense</td><td class="tr">R 9,500</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>5060</td><td>Telecoms</td><td>Expense</td><td class="tr">R 5,000</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>5070</td><td>Office Supplies</td><td>Expense</td><td class="tr">R 2,500</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>5080</td><td>Bank Charges</td><td>Expense</td><td class="tr">R 1,200</td><td class="tr" style="color:var(--txm)">—</td></tr>
-        <tr data-nz="1"><td>5090</td><td>Insurance</td><td>Expense</td><td class="tr">R 3,200</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>2000</td><td>Cost of Sales</td><td>Expense</td><td class="tr">R 380,200</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>4000</td><td>Salaries &amp; Wages</td><td>Expense</td><td class="tr">R 92,400</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>4010</td><td>Rent &amp; Occupancy</td><td>Expense</td><td class="tr">R 24,000</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>4020</td><td>Depreciation</td><td>Expense</td><td class="tr">R 18,600</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>4030</td><td>Utilities</td><td>Expense</td><td class="tr">R 9,500</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>4040</td><td>Telecoms</td><td>Expense</td><td class="tr">R 5,000</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>4050</td><td>Office Supplies</td><td>Expense</td><td class="tr">R 2,500</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>4060</td><td>Bank Charges</td><td>Expense</td><td class="tr">R 1,200</td><td class="tr" style="color:var(--txm)">—</td></tr>
+        <tr data-nz="1"><td>4070</td><td>Insurance</td><td>Expense</td><td class="tr">R 3,200</td><td class="tr" style="color:var(--txm)">—</td></tr>
         <tr class="tt"><td colspan="3" style="padding-left:20px;font-size:12px;color:var(--txm)">Subtotal — Expenses</td><td class="tr">R 536,600</td><td class="tr" style="color:var(--txm)">—</td></tr>
         <tr class="tg"><td colspan="3">Grand Total</td><td class="tr" style="color:var(--ac)">R 2,912,100</td><td class="tr" style="color:var(--ac)">R 2,912,100</td></tr>
       </tbody>
@@ -1472,7 +1457,7 @@ body.locked .app{visibility:hidden}
   <div class="btn-grp"><button class="btn btn-p" onclick="saveCompany()"><i class="ti ti-device-floppy"></i> Save Settings</button><button class="btn btn-s" onclick="loadCompanyForm()">Reset</button></div>
 </div>
   <div id="set-years" style="display:none">
-    <div class="notice"><i class="ti ti-info-circle"></i> <div>Postings are only allowed in an <strong>open</strong> financial year. Close years in order, oldest first. Closing posts a year-end journal that moves the year's net profit to Retained Earnings (GL 3020). Only administrators can reopen a closed year.</div></div>
+    <div class="notice"><i class="ti ti-info-circle"></i> <div>Postings are only allowed in an <strong>open</strong> financial year. Close years in order, oldest first. Closing posts a year-end journal that moves the year's net profit to Retained Earnings (GL 7010). Only administrators can reopen a closed year.</div></div>
     <div class="g3" id="fy-stats"></div>
     <div class="card"><div class="card-title">Financial Years <button class="btn btn-p btn-sm" onclick="openAddFY()"><i class="ti ti-plus"></i> Add Financial Year</button></div>
       <table><thead><tr><th>Year</th><th>Period</th><th>Status</th><th class="tr">Income</th><th class="tr">Expenses</th><th class="tr">Net Profit</th><th style="width:290px">Actions</th></tr></thead><tbody id="fy-body"></tbody></table>
@@ -1969,11 +1954,11 @@ const ENQ={
   'Eskom Holdings':{code:'SUP-002',open:0,side:'cr',rows:[['05 Mar','PI-2025-021','Invoice ESK-44321 — Electricity',0,9500]]}
  },
  gl:{
-  '1010 — FNB Current Account':{open:285540,side:'dr',rows:[['18 Mar','JNL-086','Eskom — electricity',0,9500],['20 Mar','JNL-087','Payroll — March',0,50040],['22 Mar','JNL-088','Rent — Bidvest',0,24000],['23 Mar','RCP-2025-023','MTN receipt',210000,0]]},
-  '2100 — VAT Output (Payable)':{open:67469,side:'cr',rows:[['23 Mar','JNL-089','Output VAT — MTN',0,27391]]},
-  '4010 — Sales — Standard VAT':{open:659991,side:'cr',rows:[['23 Mar','JNL-089','Sales invoice — MTN',0,182609]]},
-  '5020 — Salaries & Wages':{open:0,side:'dr',rows:[['20 Mar','JNL-087','Payroll — March',92400,0]]},
-  '5030 — Rent & Occupancy':{open:3130,side:'dr',rows:[['22 Mar','JNL-088','Rent — Bidvest',20870,0]]}
+  '6000 — FNB Current Account':{open:285540,side:'dr',rows:[['18 Mar','JNL-086','Eskom — electricity',0,9500],['20 Mar','JNL-087','Payroll — March',0,50040],['22 Mar','JNL-088','Rent — Bidvest',0,24000],['23 Mar','RCP-2025-023','MTN receipt',210000,0]]},
+  '9100 — VAT Output (Payable)':{open:67469,side:'cr',rows:[['23 Mar','JNL-089','Output VAT — MTN',0,27391]]},
+  '1000 — Sales — Standard VAT':{open:659991,side:'cr',rows:[['23 Mar','JNL-089','Sales invoice — MTN',0,182609]]},
+  '4000 — Salaries & Wages':{open:0,side:'dr',rows:[['20 Mar','JNL-087','Payroll — March',92400,0]]},
+  '4010 — Rent & Occupancy':{open:3130,side:'dr',rows:[['22 Mar','JNL-088','Rent — Bidvest',20870,0]]}
  }
 };
 const enqIso=t=>{t=String(t||'').trim(); let m;
@@ -2048,7 +2033,7 @@ function subJnlLines(p){
   const type=document.getElementById(p+'-type').value;
   const amt=parseFloat(document.getElementById(p+'-amt').value)||0;
   const contra=document.getElementById(p+'-contra').value;
-  const ctl=p==='cj'?'1100 — Accounts Receivable':'2010 — Accounts Payable';
+  const ctl=p==='cj'?'6100 — Accounts Receivable':'9000 — Accounts Payable';
   const ctlDebit=p==='cj'?type==='inc':type==='dec';
   return {amt,contra,ctl,ctlDebit,type};
 }
@@ -2083,7 +2068,7 @@ const STK={
  'TP-002 — USB-C Hub (7-port)':{cost:490,open:8,rows:[['18 Mar','SI-2025-039','Sale',0,3]]},
  'CS-001 — Multi-Surface Cleaner 5L':{cost:85,open:40,rows:[['11 Mar','SI-2025-040','Sale',0,10]]}
 };
-const stkQty=k=>STK[k].rows.reduce((q,r)=>q+r[3]-r[4],STK[k].open);
+const stkQty=k=>STK[k]?STK[k].rows.reduce((q,r)=>q+r[3]-r[4],STK[k].open):0;
 function initStk(){
   const o=Object.keys(STK).map(k=>'<option>'+k+'</option>').join('');
   document.querySelectorAll('select.stk-opts').forEach(x=>x.innerHTML=o);
@@ -2092,7 +2077,7 @@ function initStk(){
   document.getElementById('tk-body').innerHTML=Object.keys(STK).map((k,i)=>'<tr><td>'+k+'</td><td class="tr">'+stkQty(k)+'</td><td><input type="number" class="tk-c tr" data-i="'+i+'" placeholder="'+stkQty(k)+'" oninput="calcTake()"></td><td class="tr tk-v">—</td><td class="tr tk-vv">—</td></tr>').join('')+'<tr class="tt"><td colspan="4">Net variance value</td><td class="tr" id="tk-tot">R 0.00</td></tr>';
 }
 function renderStk(){
-  const k=document.getElementById('stk-sel').value, d=STK[k]; let q=d.open; const F=val('stk-from'),T=val('stk-to');
+  const k=document.getElementById('stk-sel').value, d=STK[k]; if(!d){document.getElementById('stk-body').innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--txm)">No inventory items yet.</td></tr>'; document.getElementById('stk-stats').innerHTML=''; return;} let q=d.open; const F=val('stk-from'),T=val('stk-to');
   if(F) d.rows.forEach(r=>{const i=enqIso(r[0]); if(i!==null&&i<F) q+=r[3]-r[4];});
   let h='<tr><td>—</td><td>—</td><td style="color:var(--tx2)">Opening Balance'+(F?' at '+fmtD(F,1):'')+'</td><td></td><td></td><td class="tr">'+q+'</td></tr>';
   d.rows.forEach(r=>{const i=enqIso(r[0]); if(i!==null&&((F&&i<F)||(T&&i>T))) return; q+=r[3]-r[4];h+='<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td class="tr">'+(r[3]||'')+'</td><td class="tr">'+(r[4]||'')+'</td><td class="tr">'+q+'</td></tr>';});
@@ -2101,7 +2086,7 @@ function renderStk(){
   const st=(l,v,s)=>'<div class="stat-card"><div class="stat-lbl">'+l+'</div><div class="stat-val">'+v+'</div><div class="stat-sub">'+s+'</div></div>';
   document.getElementById('stk-stats').innerHTML=st('Qty on Hand',q,'Closing, 31 Mar')+st('Unit Cost',fmtR(d.cost),'FIFO, excl. VAT')+st('Stock Value',fmtR(q*d.cost),'Qty × cost');
 }
-function grnCost(sel){const r=sel.closest('tr');r.querySelector('.grn-c').value=STK[sel.value].cost;calcGrn();}
+function grnCost(sel){if(!STK[sel.value]) return; const r=sel.closest('tr');r.querySelector('.grn-c').value=STK[sel.value].cost;calcGrn();}
 function calcGrn(){
   let t=0;
   document.querySelectorAll('#inv-grn tbody tr').forEach(r=>{
@@ -2116,12 +2101,12 @@ function postGrn(){
   let t=0; document.querySelectorAll('.grn-q').forEach(q=>{ if(parseFloat(q.value)>0) t++; });
   if(!t){alert('Enter a received quantity for at least one item.');return;}
   {const pe=checkPostingDate(document.querySelector('#inv-grn input[type="date"]').value); if(pe){alert(pe);return;}}
-  alert('GRN posted: Dr 1150 Inventory / Cr 2010 Accounts Payable (GRN clearing).');
+  alert('GRN posted: Dr 6200 Inventory / Cr 9000 Accounts Payable (GRN clearing).');
 }
 function adjLines(){
   const k=document.getElementById('adj-item').value, type=document.getElementById('adj-type').value;
   const qty=parseFloat(document.getElementById('adj-qty').value)||0;
-  return {k,type,qty,val:qty*STK[k].cost};
+  return {k,type,qty,val:qty*((STK[k]||{}).cost||0)};
 }
 function previewAdj(){
   const j=adjLines(), el=document.getElementById('adj-prev'), w=document.getElementById('adj-warn');
@@ -2129,7 +2114,7 @@ function previewAdj(){
   if(!j.qty){el.innerHTML='<tr><td colspan="3" style="color:var(--txm)">Select an item and quantity to preview the posting</td></tr>';return;}
   const dec=j.type==='dec';
   const row=(a,d)=>'<tr><td>'+a+'</td><td class="tr">'+(d?fmtR(j.val):'')+'</td><td class="tr">'+(d?'':fmtR(j.val))+'</td></tr>';
-  el.innerHTML=row(dec?escH(adjGlLbl()):'1150 — Inventory Asset',true)+row(dec?'1150 — Inventory Asset':escH(adjGlLbl()),false)+'<tr class="tt"><td>Total</td><td class="tr">'+fmtR(j.val)+'</td><td class="tr">'+fmtR(j.val)+'</td></tr>';
+  el.innerHTML=row(dec?escH(adjGlLbl()):'6200 — Inventory Asset',true)+row(dec?'6200 — Inventory Asset':escH(adjGlLbl()),false)+'<tr class="tt"><td>Total</td><td class="tr">'+fmtR(j.val)+'</td><td class="tr">'+fmtR(j.val)+'</td></tr>';
 }
 let adjSeq=0;
 function postAdj(){
@@ -2173,7 +2158,7 @@ function fillReports(){
   const keys=Object.keys(STK), sku=k=>k.split(' — ')[0], nm=k=>k.split(' — ')[1];
   let tv=0; h='';
   keys.forEach(k=>{const q=stkQty(k),v=q*STK[k].cost;tv+=v;h+='<tr><td>'+sku(k)+'</td><td>'+nm(k)+'</td><td class="tr">'+q+'</td><td class="tr">'+fmtR(STK[k].cost)+'</td><td class="tr">'+fmtR(v)+'</td></tr>';});
-  h+='<tr><td>—</td><td>Other items (35)</td><td class="tr">—</td><td class="tr">—</td><td class="tr">'+fmtR(86400-tv)+'</td></tr><tr class="tg"><td colspan="4">Total (agrees to GL 1150)</td><td class="tr">'+fmtR(86400)+'</td></tr>';
+  if(CO_BLANK()) h+='<tr class="tg"><td colspan="4">Total</td><td class="tr">'+fmtR(tv)+'</td></tr>'; else h+='<tr><td>—</td><td>Other items (35)</td><td class="tr">—</td><td class="tr">—</td><td class="tr">'+fmtR(86400-tv)+'</td></tr><tr class="tg"><td colspan="4">Total (agrees to GL 6200)</td><td class="tr">'+fmtR(86400)+'</td></tr>';
   document.getElementById('ir-list-body').innerHTML=h;
   h='';
   keys.forEach(k=>{const d=STK[k],i=d.rows.reduce((a,r)=>a+r[3],0),o=d.rows.reduce((a,r)=>a+r[4],0),c=d.open+i-o;h+='<tr><td>'+sku(k)+'</td><td>'+nm(k)+'</td><td class="tr">'+d.open+'</td><td class="tr">'+(i||'—')+'</td><td class="tr">'+(o||'—')+'</td><td class="tr">'+c+'</td><td class="tr">'+fmtR(c*d.cost)+'</td></tr>';});
@@ -2235,10 +2220,10 @@ const esc=t=>t.replace(/&/g,'&amp;');
 const optL=l=>l.map(x=>'<option>'+esc(x)+'</option>').join('');
 const CUSTS=['Woolworths Ltd','Shoprite Holdings','MTN Group','Naspers Ltd','Standard Bank'];
 const SUPS=['Bidvest Facilities','Eskom Holdings','Vodacom Business','Massdiscounters','Outsurance'];
-const GLA=['1010 — FNB Current Account','1020 — Nedbank Savings','1100 — Accounts Receivable','1150 — Inventory Asset','1200 — VAT Input','1500 — Property & Equipment','2010 — Accounts Payable','2100 — VAT Output','2200 — PAYE Payable','2300 — UIF Payable','3010 — Share Capital','3020 — Retained Earnings','4010 — Sales — Standard VAT','4030 — Interest Income','5010 — Cost of Sales','5020 — Salaries & Wages','5030 — Rent & Occupancy','5040 — Depreciation','5050 — Utilities','5060 — Telecoms','5070 — Office Supplies','5080 — Bank Charges','5090 — Insurance'];
-const CONTRA_C=['5100 — Bad Debts Written Off','4030 — Interest Income','4010 — Sales — Standard VAT','5090 — Rounding / Sundry'];
-const CONTRA_S=['5010 — Cost of Sales','5090 — Insurance','5080 — Bank Charges','5090 — Rounding / Sundry'];
-const BANK={'1010 — FNB Current Account':412000,'1020 — Nedbank Savings':95200};
+const GLA=['6000 — FNB Current Account','6010 — Nedbank Savings','6100 — Accounts Receivable','6200 — Inventory Asset','6300 — VAT Input','5000 — Property & Equipment','9000 — Accounts Payable','9100 — VAT Output','9200 — PAYE Payable','9210 — UIF Payable','7000 — Share Capital','7010 — Retained Earnings','1000 — Sales — Standard VAT','3000 — Interest Income','2000 — Cost of Sales','4000 — Salaries & Wages','4010 — Rent & Occupancy','4020 — Depreciation','4030 — Utilities','4040 — Telecoms','4050 — Office Supplies','4060 — Bank Charges','4070 — Insurance'];
+const CONTRA_C=['4080 — Bad Debts Written Off','3000 — Interest Income','1000 — Sales — Standard VAT','4070 — Rounding / Sundry'];
+const CONTRA_S=['2000 — Cost of Sales','4070 — Insurance','4060 — Bank Charges','4070 — Rounding / Sundry'];
+const BANK={'6000 — FNB Current Account':412000,'6010 — Nedbank Savings':95200};
 const BATCH={cb:{ref:'CJB',n:0,list:[]},sb:{ref:'SJB',n:0,list:[]},gj:{ref:'GJB',n:0,list:[]},cx:{ref:'CBB',n:0,list:[]}};
 function lineHtml(k){
   const rm=`<td><button class="btn btn-s btn-sm" title="Remove line" onclick="rmLine(this,'${k}')">✕</button></td>`;
@@ -2270,7 +2255,7 @@ function calcBatch(k){
     const inc=L.filter(l=>l.type==='inc').reduce((a,l)=>a+l.amt,0), dec=L.filter(l=>l.type==='dec').reduce((a,l)=>a+l.amt,0), net=inc-dec;
     const labs=k==='cb'?['Debits to customers','Credits to customers']:['Credits to suppliers','Debits to suppliers'];
     const side=k==='cb'?(net>=0?'Debit':'Credit'):(net>=0?'Credit':'Debit');
-    el.innerHTML=bstat(labs[0],fmtR(inc))+bstat(labs[1],fmtR(dec))+bstat('Net movement on GL '+(k==='cb'?'1100':'2010'),fmtR(Math.abs(net)),side+' to control account');
+    el.innerHTML=bstat(labs[0],fmtR(inc))+bstat(labs[1],fmtR(dec))+bstat('Net movement on GL '+(k==='cb'?'6100':'9000'),fmtR(Math.abs(net)),side+' to control account');
   } else if(k==='gj'){
     const dr=L.reduce((a,l)=>a+l.dr,0), cr=L.reduce((a,l)=>a+l.cr,0), ok=Math.abs(dr-cr)<0.005&&dr>0;
     el.innerHTML=bstat('Total debits',fmtR(dr))+bstat('Total credits',fmtR(cr))+bstat('Difference',fmtR(Math.abs(dr-cr)),dr===0&&cr===0?'Enter amounts':(ok?'✓ Balanced':'Out of balance'),dr===0&&cr===0?'':(ok?'--ok':'--dn'));
@@ -2313,28 +2298,28 @@ function initBatches(){['cb','sb','gj','cx'].forEach(k=>{addLine(k);renderBatchL
 // ── Import (journals & cashbook batches) ──
 const IMP={
  cb:{file:'customer_journal_batch_template.csv',title:'Import customer journal batch lines',cols:['Customer','Adjustment (Debit/Credit)','Contra Account','Narration','Amount'],
-  sample:[['Woolworths Ltd','Debit','4030','Interest on overdue account','1250.00'],['Shoprite Holdings','Credit','5090 — Rounding / Sundry','Rounding correction','12.50']],
+  sample:[['Woolworths Ltd','Debit','3000','Interest on overdue account','1250.00'],['Shoprite Holdings','Credit','4070 — Rounding / Sundry','Rounding correction','12.50']],
   help:'Columns: Customer, Adjustment (Debit = increase balance, Credit = decrease), Contra Account (code or name), Narration, Amount.'},
  sb:{file:'supplier_journal_batch_template.csv',title:'Import supplier journal batch lines',cols:['Supplier','Adjustment (Debit/Credit)','Contra Account','Narration','Amount'],
-  sample:[['Bidvest Facilities','Credit','5010','Reclassification of invoice','500.00'],['Eskom Holdings','Debit','5090 — Rounding / Sundry','Settlement discount','120.00']],
+  sample:[['Bidvest Facilities','Credit','2000','Reclassification of invoice','500.00'],['Eskom Holdings','Debit','4070 — Rounding / Sundry','Settlement discount','120.00']],
   help:'Columns: Supplier, Adjustment (Credit = increase amount owing, Debit = decrease), Contra Account (code or name), Narration, Amount.'},
  gj:{file:'gl_journal_batch_template.csv',title:'Import general ledger journal batch lines',cols:['Account','Narration','Debit','Credit'],
-  sample:[['5030','Accrue March rent','1500.00',''],['2010','Accrue March rent','','1500.00']],
+  sample:[['4010','Accrue March rent','1500.00',''],['9000','Accrue March rent','','1500.00']],
   help:'Columns: Account (code or name), Narration, Debit, Credit. Each line needs a debit or a credit, not both. The batch must balance before it can be posted.'},
  jn:{file:'gl_journal_entry_template.csv',title:'Import journal entry lines',cols:['Account','Narration','Debit','Credit'],
-  sample:[['5030','Accrue March rent','1500.00',''],['2010','Accrue March rent','','1500.00']],
+  sample:[['4010','Accrue March rent','1500.00',''],['9000','Accrue March rent','','1500.00']],
   help:'Columns: Account (code or name), Narration, Debit, Credit. Each line needs a debit or a credit, not both. Debits must equal credits to post.'},
  cust:{file:'customers_import_template.csv',title:'Import customers',cols:['Customer Name','Trading Name','VAT No','Company Reg No','Contact Person','Email','Phone','Credit Limit','Payment Terms','Street','Suburb','City','Province','Postal Code'],
   sample:[['ABC Holdings (Pty) Ltd','ABC','4123456789','2020/123456/07','Jane Smith','accounts@abc.co.za','011 555 0100','250000','30 days','12 Main Road','Sandton','Johannesburg','Gauteng','2196'],['Karoo Traders','','','','Piet Venter','piet@karoo.co.za','','50000','COD','4 Church St','','Beaufort West','Western Cape','6970']],
   help:'Columns: Customer Name and Email are required. VAT No is 10 digits starting with 4. Payment Terms: 30 days, 60 days, 7 days, COD or EOM + 30 (blank = 30 days). Existing customers are not changed — use Edit for that.'},
  sup:{file:'suppliers_import_template.csv',title:'Import suppliers',cols:['Supplier Name','Trading Name','VAT No','Company Reg No','Contact Person','Email','Phone','Bank Account','Payment Terms','Default Expense Account','Street','Suburb','City','Province','Postal Code'],
-  sample:[['ABC Supplies (Pty) Ltd','ABC','4123456780','2015/123456/07','Sam Naidoo','invoices@abcsupplies.co.za','011 555 0200','FNB 62012345678','30 days','5070','123 Industrial Rd','Germiston','Ekurhuleni','Gauteng','1401']],
-  help:'Columns: Supplier Name and Email are required. VAT No is 10 digits starting with 4. Payment Terms: 30 days, 60 days, 7 days, COD, EOM or Monthly (blank = 30 days). Default Expense Account is a code or name from the Chart of Accounts (blank = 5010). Existing suppliers are not changed — use Edit for that.'},
+  sample:[['ABC Supplies (Pty) Ltd','ABC','4123456780','2015/123456/07','Sam Naidoo','invoices@abcsupplies.co.za','011 555 0200','FNB 62012345678','30 days','4050','123 Industrial Rd','Germiston','Ekurhuleni','Gauteng','1401']],
+  help:'Columns: Supplier Name and Email are required. VAT No is 10 digits starting with 4. Payment Terms: 30 days, 60 days, 7 days, COD, EOM or Monthly (blank = 30 days). Default Expense Account is a code or name from the Chart of Accounts (blank = 2000). Existing suppliers are not changed — use Edit for that.'},
  adj:{file:'stock_adjustments_template.csv',title:'Import stock adjustments',cols:['Item','Adjustment (Decrease/Increase)','Quantity','Reason','GL Account'],
-  sample:[['OE-002','Decrease','1','Damaged in storeroom','5010'],['SS-001','Increase','5','Stock found on recount','5010']],
-  help:'Columns: Item (SKU or name), Adjustment (Decrease or Increase), Quantity, Reason, GL Account (code or name from the Chart of Accounts; blank = 5010). A decrease cannot take stock below zero. The other side of each posting is 1150 — Inventory Asset.'},
+  sample:[['OE-002','Decrease','1','Damaged in storeroom','2000'],['SS-001','Increase','5','Stock found on recount','2000']],
+  help:'Columns: Item (SKU or name), Adjustment (Decrease or Increase), Quantity, Reason, GL Account (code or name from the Chart of Accounts; blank = 2000). A decrease cannot take stock below zero. The other side of each posting is 6200 — Inventory Asset.'},
  cx:{file:'cashbook_batch_template.csv',title:'Import cashbook batch lines',cols:['Date','Type (Receipt/Payment)','Reference','Description','Contra Account','VAT (15 or 0)','Amount (Incl. VAT)'],
-  sample:[['2025-03-28','Receipt','EFT-8841','Customer receipt — Woolworths','1100','0','10000.00'],['2025-03-29','Payment','DD-2210','Telephone — Vodacom','5060','15','5000.00']],
+  sample:[['2025-03-28','Receipt','EFT-8841','Customer receipt — Woolworths','6100','0','10000.00'],['2025-03-29','Payment','DD-2210','Telephone — Vodacom','4040','15','5000.00']],
   help:'Columns: Date (YYYY-MM-DD or DD/MM/YYYY), Type, Reference, Description, Contra Account (code or name), VAT (15 = standard, 0 = no VAT), Amount including VAT. Lines import into the bank account selected on the batch.'}
 };
 let IMPK=null, IMPLINES=[];
@@ -2384,7 +2369,7 @@ function validateMaster(k,r){
     const ty=(r[1]||'').toLowerCase(); let type=null; if(/^(d|dec)/.test(ty)) type='dec'; else if(/^(i|inc)/.test(ty)) type='inc'; else e.push('Adjustment must be Decrease or Increase');
     const qty=parseNum(r[2]); if(!(qty>0)) e.push('Quantity must be greater than 0');
     const reason=t(3); if(!reason) e.push('Reason required');
-    const gl=t(4)?matchList(r[4],ADJ_GL().map(a=>a.code+' — '+a.name)):ADJ_GL().map(a=>a.code+' — '+a.name).find(x=>x.startsWith('5010'));
+    const gl=t(4)?matchList(r[4],ADJ_GL().map(a=>a.code+' — '+a.name)):ADJ_GL().map(a=>a.code+' — '+a.name).find(x=>x.startsWith('2000'));
     if(!gl) e.push('Unknown GL account "'+(r[4]||'')+'"');
     if(item&&type&&qty>0){ const have=IMPSEEN.stk[item]!==undefined?IMPSEEN.stk[item]:stkQty(item); if(type==='dec'&&qty>have) e.push('Only '+have+' on hand'); else IMPSEEN.stk[item]=have+(type==='inc'?qty:-qty); }
     return {e,line:{k:item,type,qty,reason,gl,val:item?qty*STK[item].cost:0}};
@@ -2394,7 +2379,7 @@ function validateMaster(k,r){
   if(sup){ if(o.name.length<2) e.push('Enter the supplier name'); else if(Object.keys(ENQ.sup).some(n=>n.toLowerCase()===key)) e.push('A supplier called "'+o.name+'" already exists');
     if(!EMAIL_RE.test(o.email)) e.push('Valid email required'); if(o.vat&&!/^4\d{9}$/.test(o.vat)) e.push('VAT no must be 10 digits starting with 4');
     o.bank=t(7); const tm=t(8)?SUP_TERMS.find(x=>x.toLowerCase()===t(8).toLowerCase()):'30 days'; if(!tm) e.push('Payment terms must be one of: '+SUP_TERMS.join(', ')); o.terms=tm;
-    const ex=t(9)?matchList(r[9],coaAccounts().filter(a=>a.sec==='Expenses'&&a.active).map(a=>a.code+' — '+a.name)):'5010 — Cost of Sales'; if(!ex) e.push('Unknown expense account "'+t(9)+'"'); o.exp=ex?ex.slice(0,4):'5010';
+    const ex=t(9)?matchList(r[9],coaAccounts().filter(a=>a.sec==='Expenses'&&a.active).map(a=>a.code+' — '+a.name)):'2000 — Cost of Sales'; if(!ex) e.push('Unknown expense account "'+t(9)+'"'); o.exp=ex?ex.slice(0,4):'2000';
     o.a={street:t(10),suburb:t(11),city:t(12),prov:t(13),pc:t(14)};
   } else { o.limit=parseNum(r[7]); const v=validateCustomer(Object.assign({},o,{limit:o.limit||0}),null); if(v) e.push(v.replace(/^Enter the customer name\./,'Customer name required'));
     const tm=t(8)?CUST_TERMS.find(x=>x.toLowerCase()===t(8).toLowerCase()):'30 days'; if(!tm) e.push('Payment terms must be one of: '+CUST_TERMS.join(', ')); o.terms=tm; if(Number.isNaN(o.limit)) o.limit=0;
@@ -2840,7 +2825,7 @@ function closingJournal(fy){
   const net=fy.income-fy.expenses, L=[];
   if(fy.income) L.push(['Income accounts (4xxx)',fy.income,0]);
   if(fy.expenses) L.push(['Expense accounts (5xxx)',0,fy.expenses]);
-  if(net>=0) L.push(['3020 — Retained Earnings',0,net]); else L.push(['3020 — Retained Earnings',-net,0]);
+  if(net>=0) L.push(['7010 — Retained Earnings',0,net]); else L.push(['7010 — Retained Earnings',-net,0]);
   return {net,lines:L};
 }
 function closeFYCore(id,by){
@@ -3223,7 +3208,7 @@ function loadCompany(){ if(CO_BLANK()&&!LS.get('apex_company_v1')) Object.assign
 const DKEY={vatp:'apex_vatp_v1',calls:'apex_calls_v1',techs:'apex_techs_v1',per:'apex_per_v1',read:'apex_read_v1',assets:'apex_assets_v1',svc:'apex_svc_v1',dep:'apex_dep_v1',con:'apex_con_v1',bill:'apex_bill_v1',cnv:'apex_cnv_v1',bb:'apex_bb_v1',escl:'apex_escl_v1',emp:'apex_emp_v1',po:'apex_po_v1',sales:'apex_sales_v1',preq:'apex_preq_v1',pret:'apex_pret_v1',grn:'apex_grn_v1',sinv:'apex_sinv_v1',wo:'apex_wo_v1',req:'apex_req_v1',sla:'apex_sla_v1'};
 const DATA={};
 function dload(k,def){try{const v=JSON.parse(LS.get(DKEY[k])||'null'); DATA[k]=Array.isArray(v)?v:def;}catch(x){DATA[k]=def;}}
-function dsave(k){try{LS.set(DKEY[k],JSON.stringify(DATA[k]));}catch(x){toast('Could not save in this browser.');} if(k==='bill'||k==='sales'||k==='sinv'||k==='preq'||k==='pret'||k==='calls'||k==='wo'||k==='bb'||k==='cnv'){try{finRenderAll();glEnqSync();renderEnq('gl');}catch(e){}} }
+function dsave(k){try{LS.set(DKEY[k],JSON.stringify(DATA[k]));}catch(x){toast('Could not save in this browser.');} if(k==='bill'||k==='sales'||k==='sinv'||k==='preq'||k==='pret'||k==='calls'||k==='wo'||k==='bb'||k==='cnv'){try{finRenderAll();renderDash();glEnqSync();renderEnq('gl');}catch(e){}} }
 const todayISO=()=>new Date().toISOString().slice(0,10);
 const r2=n=>Math.round((n+Number.EPSILON)*100)/100;
 const addMonths=(iso,n)=>{const d=new Date(iso+'T00:00:00Z'); const day=d.getUTCDate(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth()+n); const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate(); d.setUTCDate(Math.min(day,last)); return d.toISOString().slice(0,10);};
@@ -3343,8 +3328,8 @@ function postDep(){
 // ══ Contracts ══
 function dayAdd(iso,n){const d=new Date(iso+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10);}
 let CTYPES=[]; const CT_KEY='apex_ctypes_v1';
-const CT_DEF=()=>[{name:'Bank Rental',asset:'required',funder:true,ever:false,active:true,rev:'4010',cos:'5010'},{name:'Inhouse Rental',asset:'required',funder:false,ever:false,active:true,rev:'4010',cos:'5010'},{name:'Evergreen Rental',asset:'required',funder:false,ever:true,active:true,rev:'4010',cos:'5010'},{name:'Service',asset:'optional',funder:false,ever:false,active:true,rev:'4010',cos:'5010'}];
-function loadCTypes(){try{const v=JSON.parse(LS.get(CT_KEY)||'null'); CTYPES=Array.isArray(v)&&v.length?v:CT_DEF();}catch(x){CTYPES=CT_DEF();} CTYPES.forEach(t=>{if(!t.rev)t.rev='4010'; if(!t.cos)t.cos='5010';});}
+const CT_DEF=()=>[{name:'Bank Rental',asset:'required',funder:true,ever:false,active:true,rev:'1000',cos:'2000'},{name:'Inhouse Rental',asset:'required',funder:false,ever:false,active:true,rev:'1000',cos:'2000'},{name:'Evergreen Rental',asset:'required',funder:false,ever:true,active:true,rev:'1000',cos:'2000'},{name:'Service',asset:'optional',funder:false,ever:false,active:true,rev:'1000',cos:'2000'}];
+function loadCTypes(){try{const v=JSON.parse(LS.get(CT_KEY)||'null'); CTYPES=Array.isArray(v)&&v.length?v:CT_DEF();}catch(x){CTYPES=CT_DEF();} CTYPES.forEach(t=>{if(!t.rev)t.rev='1000'; if(!t.cos)t.cos='2000';});}
 const saveCTypes=()=>{try{LS.set(CT_KEY,JSON.stringify(CTYPES));}catch(x){toast('Could not save in this browser.');}};
 const ctOf=n=>CTYPES.find(t=>t.name===n);
 const LTYPES_ACTIVE=()=>CTYPES.filter(t=>t.active).map(t=>t.name);
@@ -3353,8 +3338,8 @@ const ltFunder=n=>{const t=ctOf(n); return !!t&&t.funder;};
 const ltEver=n=>{const t=ctOf(n); return !!t&&t.ever;};
 const ctUse=n=>DATA.con.reduce((k,c)=>k+c.lines.filter(l=>l.type===n).length,0);
 function fillTypeFilter(){const sel=$('ci-type'); if(!sel) return; const cur=sel.value; sel.innerHTML='<option value="">All types</option><option>Meter Usage</option>'+CTYPES.map(t=>`<option>${escH(t.name)}</option>`).join(''); sel.value=cur;}
-let MTYPES=[]; const MT_KEY='apex_mtypes_v1', MT_DEF=()=>['Mono','Colour','Scan','Tier 1','Tier 2','Tier 3'].map(name=>({name,active:true,rev:'4010',cos:'5010'}));
-function loadMTypes(){try{const v=JSON.parse(LS.get(MT_KEY)||'null'); MTYPES=Array.isArray(v)&&v.length?v:MT_DEF();}catch(x){MTYPES=MT_DEF();} MTYPES.forEach(t=>{if(!t.rev)t.rev='4010'; if(!t.cos)t.cos='5010';});}
+let MTYPES=[]; const MT_KEY='apex_mtypes_v1', MT_DEF=()=>['Mono','Colour','Scan','Tier 1','Tier 2','Tier 3'].map(name=>({name,active:true,rev:'1000',cos:'2000'}));
+function loadMTypes(){try{const v=JSON.parse(LS.get(MT_KEY)||'null'); MTYPES=Array.isArray(v)&&v.length?v:MT_DEF();}catch(x){MTYPES=MT_DEF();} MTYPES.forEach(t=>{if(!t.rev)t.rev='1000'; if(!t.cos)t.cos='2000';});}
 const saveMTypes=()=>{try{LS.set(MT_KEY,JSON.stringify(MTYPES));}catch(x){toast('Could not save in this browser.');}};
 const mtOf=n=>MTYPES.find(t=>t.name===n);
 const mtUse=n=>DATA.con.reduce((k,c)=>k+(c.meters||[]).filter(m=>m.type===n).length,0);
@@ -3799,7 +3784,7 @@ function saveCall(){
     const T={Breakdown:'Repair','Routine service':'Routine service',Installation:'Routine service',Inspection:'Inspection / Certification'}[c.type]||'Repair';
     DATA.svc.push({asset:c.asset,date:c.completed,type:T,sup:(getTech(c.tech)||{}).name||'',cost:c.cost||0,next:'',notes:'Call '+c.id+': '+c.res}); c.svcLogged=true; dsave('svc');
   }
-  dsave('calls'); try{finRenderAll();glEnqSync();renderEnq('gl');}catch(e){} logEv(base?'Service call updated':'Service call logged',c.id+' '+c.status); closeModal('sc-bg'); renderCalls(); renderTechs(); renderSvc(); toast('Service call '+c.id+' saved.'); svcNotifyCheck(c);
+  dsave('calls'); try{finRenderAll();renderDash();glEnqSync();renderEnq('gl');}catch(e){} logEv(base?'Service call updated':'Service call logged',c.id+' '+c.status); closeModal('sc-bg'); renderCalls(); renderTechs(); renderSvc(); toast('Service call '+c.id+' saved.'); svcNotifyCheck(c);
 }
 function callAction(id,a){
   if(!canMod('service')){deny();return;} const c=DATA.calls.find(x=>x.id===id); if(!c) return;
@@ -3931,7 +3916,7 @@ function umCoToggle(){const a=$('um-allco').checked; document.querySelectorAll('
 
 // ══ Per-company starting data ══
 function initCompanySeed(){
-  if(CO_BLANK()){ Object.keys(ENQ.cust).forEach(k=>delete ENQ.cust[k]); Object.keys(ENQ.sup).forEach(k=>delete ENQ.sup[k]); }   // a blank company starts with no customers
+  if(CO_BLANK()){ [ENQ.cust,ENQ.sup,ENQ.gl,STK].forEach(o=>Object.keys(o).forEach(k=>delete o[k])); }   // a blank company starts with no customers
   loadCustomers();
 }
 // ══ Customers (real, per company) ══
@@ -4373,7 +4358,7 @@ function exportInvoiceXlsx(){
 
 // ══ GL account links for contract types (read from the Chart of Accounts) ══
 function coaAccounts(){
-  if(typeof ACC!=='undefined'&&ACC.length) return ACC.slice().sort((x,y)=>x.code<y.code?-1:1).map(a=>({code:a.code,name:a.name,sec:COA_CAT[a.code[0]]||'',active:a.active!==false}));
+  if(typeof ACC!=='undefined'&&ACC.length) return ACC.slice().sort((x,y)=>x.code<y.code?-1:1).map(a=>({code:a.code,name:a.name,sec:(coaGroup(a.code)||{}).sec||'',grp:(coaGroup(a.code)||{}).name||'',active:a.active!==false}));
   const out=[]; let sec='';
   document.querySelectorAll('#gl-coa tbody tr').forEach(tr=>{
     if(tr.classList.contains('ts')){sec=tr.textContent.trim();return;}
@@ -4387,8 +4372,8 @@ const glOk=(code,k)=>(k==='rev'?glRevList():glCosList()).some(a=>a.code===code);
 const glLbl=c=>{const a=coaAccounts().find(x=>x.code===c); return a?escH(a.code+' — '+a.name):'<span style="color:var(--txm)">'+escH(c||'—')+'</span>';};
 function fillGlSelects(){
   const R=glRevList(), C=glCosList(), o=a=>`<option value="${a.code}">${escH(a.code+' — '+a.name)}</option>`;
-  document.querySelectorAll('select.gl-rev').forEach(s=>{const v=s.value; s.innerHTML=R.map(o).join(''); s.value=R.some(a=>a.code===v)?v:(R.find(a=>a.code==='4010')||R[0]||{}).code;});
-  document.querySelectorAll('select.gl-cos').forEach(s=>{const v=s.value; s.innerHTML=C.map(o).join(''); s.value=C.some(a=>a.code===v)?v:(C.find(a=>a.code==='5010')||C[0]||{}).code;});
+  document.querySelectorAll('select.gl-rev').forEach(s=>{const v=s.value; s.innerHTML=R.map(o).join(''); s.value=R.some(a=>a.code===v)?v:(R.find(a=>a.code==='1000')||R[0]||{}).code;});
+  document.querySelectorAll('select.gl-cos').forEach(s=>{const v=s.value; s.innerHTML=C.map(o).join(''); s.value=C.some(a=>a.code===v)?v:(C.find(a=>a.code==='2000')||C[0]||{}).code;});
 }
 
 
@@ -4558,7 +4543,7 @@ function saveWO(){
   if(w.status==='Completed'){ c.status='Completed'; c.completed=w.completed; c.hours=w.hours; c.cost=woParts(w); c.res=w.notes;
     if(!c.svcLogged){const T={Breakdown:'Repair','Routine service':'Routine service',Installation:'Routine service',Inspection:'Inspection / Certification'}[c.type]||'Repair'; DATA.svc.push({asset:c.asset,date:c.completed,type:T,sup:(getTech(c.tech)||{}).name||'',cost:c.cost||0,next:'',notes:'Call '+c.id+' / '+w.id+': '+c.res}); c.svcLogged=true; dsave('svc');} }
   if(w.status==='Cancelled'&&c.status==='In progress') c.status='Assigned';
-  syncWoParts(w); dsave('wo'); dsave('calls'); try{finRenderAll();glEnqSync();renderEnq('gl');}catch(e){} logEv(base?'Work order updated':'Work order created',w.id+' '+w.status); closeModal('wo-bg'); renderWOs(); renderCalls(); renderTechs(); renderSvc(); toast('Work order '+w.id+' saved.'); svcNotifyCheck(c);
+  syncWoParts(w); dsave('wo'); dsave('calls'); try{finRenderAll();renderDash();glEnqSync();renderEnq('gl');}catch(e){} logEv(base?'Work order updated':'Work order created',w.id+' '+w.status); closeModal('wo-bg'); renderWOs(); renderCalls(); renderTechs(); renderSvc(); toast('Work order '+w.id+' saved.'); svcNotifyCheck(c);
 }
 function woOpenFor(id){return DATA.woOpenFor(id);}
 function renderWOs(){
@@ -4617,12 +4602,12 @@ function svExport(kind,fmt){
 
 
 // ── Stock adjustment: choose GL account ──
-const ADJ_GL=()=>coaAccounts().filter(a=>a.active&&a.code!=='1150'&&/^[1-5]/.test(a.code));
+const ADJ_GL=()=>coaAccounts().filter(a=>a.active&&a.code!=='6200'&&/^[1-5]/.test(a.code));
 function adjGlLbl(){const a=coaAccounts().find(x=>x.code===val('adj-gl')); return a?a.code+' — '+a.name:'';}
 const adjGlOk=()=>ADJ_GL().some(a=>a.code===val('adj-gl'));
 function fillAdjGl(){const e=$('adj-gl'); if(!e) return; const cur=e.value, L=ADJ_GL(); let sec='', h='';
   L.forEach(a=>{ if(a.sec!==sec){ if(sec) h+='</optgroup>'; sec=a.sec; h+=`<optgroup label="${escH(sec)}">`;} h+=`<option value="${a.code}">${escH(a.code+' — '+a.name)}</option>`;}); if(sec) h+='</optgroup>';
-  e.innerHTML=h; e.value=L.some(a=>a.code===cur)?cur:'5010'; }
+  e.innerHTML=h; e.value=L.some(a=>a.code===cur)?cur:'2000'; }
 
 
 // ── collapsible sidebar sections ──
@@ -4641,9 +4626,20 @@ function initNavCollapse(){
 
 
 // ══ Chart of Accounts (editable) ══
-const COA_KEY='apex_coa_v1', COA_SYS=['1010','1020','1100','1150','1160','1520','1200','1500','1510','2010','2100','3020','4010','5010','5040'];
-const COA_CAT={1:'Assets',2:'Liabilities',3:'Equity',4:'Income',5:'Expenses'};
-const COA_TYPES={1:['Bank','Current Asset','Fixed Asset','Contra Asset','Tax Asset'],2:['Current Liability','Long-term Liability','Tax Liability'],3:['Equity'],4:['Income'],5:['Expense']};
+const COA_KEY='apex_coa_v1', COA_SYS=['6000','6010','6100','6200','6210','5020','6300','5000','5010','9000','9100','7010','1000','2000','4020'];
+const COA_GROUPS=[
+ {name:'Sales',sec:'Income',types:['Income']},
+ {name:'Cost of Sales',sec:'Expenses',types:['Cost of Sales','Expense']},
+ {name:'Other Income',sec:'Income',types:['Other Income','Income']},
+ {name:'Overheads',sec:'Expenses',types:['Expense']},
+ {name:'Non-Current Assets',sec:'Assets',types:['Fixed Asset','Contra Asset','Non-Current Asset']},
+ {name:'Current Assets',sec:'Assets',types:['Bank','Current Asset','Tax Asset']},
+ {name:'Equity',sec:'Equity',types:['Equity']},
+ {name:'Non-Current Liabilities',sec:'Liabilities',types:['Long-term Liability']},
+ {name:'Current Liabilities',sec:'Liabilities',types:['Current Liability','Tax Liability']}];
+const coaGroup=c=>/^\d{4}$/.test(String(c))?COA_GROUPS[+String(c)[0]-1]:null;
+const isIS=c=>String(c)<'5000';   // 1000–4999 income statement, 5000–9999 balance sheet
+const COA_TYPES=COA_GROUPS.map(g=>g.types);
 let ACC=[], ACC_EDIT=null;
 function saveCOA(){try{LS.set(COA_KEY,JSON.stringify(ACC));}catch(e){toast('Could not save in this browser.');}}
 function initCOA(){
@@ -4653,23 +4649,23 @@ function initCOA(){
     const blank=CO_BLANK(); ACC=[];
     document.querySelectorAll('#coa-body tr').forEach(tr=>{const td=tr.children; if(tr.classList.contains('ts')||td.length<6) return;
       const bal=blank?0:(parseMoney(td[4].textContent)||0); ACC.push({code:td[0].textContent.trim(),name:td[1].textContent.trim(),type:td[2].textContent.trim(),vat:td[3].textContent.trim(),bal,active:true,due:/Due/.test(td[5].textContent)});});
-    [['5050','Utilities','01'],['5060','Telecoms','01'],['5070','Office Supplies','01'],['5080','Bank Charges','—'],['5090','Insurance','—'],['5100','Bad Debts Written Off','—']].forEach(x=>{if(!ACC.some(a=>a.code===x[0])) ACC.push({code:x[0],name:x[1],type:'Expense',vat:x[2],bal:0,active:true,due:false});});
+    [['4030','Utilities','01'],['4040','Telecoms','01'],['4050','Office Supplies','01'],['4060','Bank Charges','—'],['4070','Insurance','—'],['4080','Bad Debts Written Off','—']].forEach(x=>{if(!ACC.some(a=>a.code===x[0])) ACC.push({code:x[0],name:x[1],type:'Expense',vat:x[2],bal:0,active:true,due:false});});
     saveCOA();
   }
   renderCOA();
 }
 function renderCOA(){
   const tb=$('coa-body'); if(!tb) return; let h='';
-  [1,2,3,4,5].forEach(d=>{ const L=ACC.filter(a=>a.code[0]==d).sort((x,y)=>x.code<y.code?-1:1); if(!L.length) return;
-    h+=`<tr class="ts"><td colspan="7">${COA_CAT[d]}</td></tr>`;
+  COA_GROUPS.forEach((g,gi)=>{ const L=ACC.filter(a=>+a.code[0]===gi+1).sort((x,y)=>x.code<y.code?-1:1); if(!L.length) return;
+    h+=`<tr class="ts"><td colspan="7">${(gi+1)*1000}s — ${g.name}${gi<4?' (Income Statement)':' (Balance Sheet)'}</td></tr>`;
     L.forEach(a=>{const sys=COA_SYS.includes(a.code), used=acctRefs(a.code).length;
       const bal=a.bal<0?'('+fmtR(-a.bal)+')':fmtR(a.bal);
       h+=`<tr><td>${escH(a.code)}</td><td>${escH(a.name)}</td><td>${escH(a.type)}</td><td>${escH(a.vat)}</td><td class="tr">${bal}</td><td><span class="chip ${a.active?(a.due?'c-wn':'c-ok'):'c-nt'}">${a.active?(a.due?'Due':'Active'):'Inactive'}</span></td><td><button class="btn btn-s btn-sm" onclick="openAcct('${a.code}')">Edit</button> ${sys?'':`<button class="btn btn-s btn-sm" onclick="toggleAcct('${a.code}')">${a.active?'Deactivate':'Activate'}</button>`} ${sys||used||a.bal?'':`<button class="btn btn-s btn-sm" onclick="deleteAcct('${a.code}')">Delete</button>`}</td></tr>`;});});
   tb.innerHTML=h; syncGLA(); try{glEnqSync();}catch(e){} try{if(typeof finRenderAll==='function'&&TB_BASE) finRenderAll();}catch(e){}
 }
-function syncGLA(){ GLA.length=0; ACC.filter(a=>a.active&&a.code[0]<=5).sort((x,y)=>x.code<y.code?-1:1).forEach(a=>GLA.push(a.code+' — '+a.name)); }
+function syncGLA(){ GLA.length=0; ACC.filter(a=>a.active).sort((x,y)=>x.code<y.code?-1:1).forEach(a=>GLA.push(a.code+' — '+a.name)); }
 function acctRefs(code){ const r=[]; CTYPES.forEach(t=>{if(t.rev===code||t.cos===code) r.push('contract type '+t.name);}); MTYPES.forEach(t=>{if(t.rev===code||t.cos===code) r.push('meter type '+t.name);}); Object.keys(BUD).forEach(fy=>{if(BUD[fy]&&BUD[fy][code]) r.push('a budget');}); return r; }
-function acctCodeChanged(){ const c=val('ga-code'), d=/^[1-5]\d{3}$/.test(c)?+c[0]:0; $('ga-cat').value=d?COA_CAT[d]:''; const cur=val('ga-type'); $('ga-type').innerHTML=(d?COA_TYPES[d]:[]).map(t=>`<option>${t}</option>`).join(''); if(d&&COA_TYPES[d].includes(cur)) $('ga-type').value=cur; }
+function acctCodeChanged(){ const c=val('ga-code'), d=/^[1-9]\d{3}$/.test(c)?+c[0]:0; $('ga-cat').value=d?COA_GROUPS[d-1].name+(d<5?' — Income Statement':' — Balance Sheet'):''; const cur=val('ga-type'); $('ga-type').innerHTML=(d?COA_TYPES[d-1]:[]).map(t=>`<option>${t}</option>`).join(''); if(d&&COA_TYPES[d-1].includes(cur)) $('ga-type').value=cur; }
 function openAcct(code){
   if(!canSec('gl','maint')){deny();return;}
   ACC_EDIT=code||null; const a=code?ACC.find(x=>x.code===code):null, sys=a&&COA_SYS.includes(a.code), used=a?acctRefs(a.code).length:0;
@@ -4683,11 +4679,11 @@ function openAcct(code){
 function saveAcct(){
   if(!canSec('gl','maint')){deny();return;} const E='ga-err';
   const a=ACC_EDIT?ACC.find(x=>x.code===ACC_EDIT):null, code=a&&$('ga-code').disabled?a.code:val('ga-code').trim(), name=val('ga-name').replace(/\s+/g,' ').trim();
-  if(!/^[1-5]\d{3}$/.test(code)){showErr(E,'The code must be 4 digits starting with 1 to 5 (1 Assets, 2 Liabilities, 3 Equity, 4 Income, 5 Expenses).');return;}
+  if(!/^[1-9]\d{3}$/.test(code)){showErr(E,'The code must be 4 digits: 1000–4999 are Income Statement accounts (1 Sales, 2 Cost of Sales, 3 Other Income, 4 Overheads) and 5000–9999 are Balance Sheet accounts (5 Non-Current Assets, 6 Current Assets, 7 Equity, 8 Non-Current Liabilities, 9 Current Liabilities).');return;}
   if(ACC.some(x=>x.code===code&&x!==a)){showErr(E,'Account '+code+' already exists.');return;}
   if(name.length<2||name.length>60){showErr(E,'The account name must be 2 to 60 characters.');return;}
   if(ACC.some(x=>x!==a&&x.name.toLowerCase()===name.toLowerCase())){showErr(E,'An account called "'+name+'" already exists.');return;}
-  const type=val('ga-type'); if(!COA_TYPES[+code[0]].includes(type)){showErr(E,'Choose an account type that matches the category.');return;}
+  const type=val('ga-type'); if(!COA_TYPES[+code[0]-1].includes(type)){showErr(E,'Choose an account type that matches the category.');return;}
   const ob=a?a.bal:parseFloat(val('ga-open')||'0'); if(!Number.isFinite(ob)||Math.abs(ob)>1e12){showErr(E,'Enter a valid opening balance.');return;}
   const active=val('ga-active')==='1'; if(a&&!active&&a.active&&acctRefs(a.code).length){showErr(E,'This account is linked to '+acctRefs(a.code).join(', ')+', so it cannot be deactivated.');return;}
   const o={code,name,type,vat:val('ga-vat'),bal:ob,active};
@@ -4753,14 +4749,14 @@ function initCats(){
   if(Array.isArray(v)&&v.length){CATS=v;}
   else { const blank=CO_BLANK(); CATS=[];
     if(!blank) [['CAT-01','Office Equipment','Printers, furniture, peripherals',12,38500],['CAT-02','Stationery & Supplies','Paper, pens, files, envelopes',18,12400],['CAT-03','Technology Products','Computers, accessories, cables',8,24800],['CAT-04','Cleaning Supplies','Detergents, cloths, sanitisers',3,7200],['CAT-05','Safety Equipment','PPE, first aid, signage',1,3500]]
-      .forEach(x=>CATS.push({code:x[0],name:x[1],desc:x[2],gl:'1150',cos:'5010',sales:'4010',vat:'Standard Rate (15%)',cost:'FIFO (First In, First Out)',notes:'',active:true,items:x[3],value:x[4]}));
+      .forEach(x=>CATS.push({code:x[0],name:x[1],desc:x[2],gl:'6200',cos:'2000',sales:'1000',vat:'Standard Rate (15%)',cost:'FIFO (First In, First Out)',notes:'',active:true,items:x[3],value:x[4]}));
     saveCats(); }
   renderCats();
 }
 const catLabel=c=>c.code+' — '+c.name;
 function renderCats(){
   const tb=$('cat-body'); if(!tb) return;
-  tb.innerHTML=CATS.length?CATS.map(c=>`<tr><td>${escH(c.code)}</td><td><strong>${escH(c.name)}</strong></td><td>${escH(c.desc)}</td><td style="font-size:12px"><div>Inventory: ${glLbl(c.gl)}</div><div>Cost of sales: ${glLbl(c.cos||'5010')}</div><div>Sales: ${glLbl(c.sales||'4010')}</div></td><td>${escH(c.vat)}<div style="font-size:11px;color:var(--txm)">${escH(c.cost)}</div></td><td class="tr">${c.items}</td><td class="tr">${fmtR(c.value)}</td><td><span class="chip ${c.active?'c-ok':'c-nt'}">${c.active?'Active':'Inactive'}</span></td><td><button class="btn btn-s btn-sm" onclick="openCat('${c.code}')">Edit</button> <button class="btn btn-s btn-sm" onclick="toggleCat('${c.code}')">${c.active?'Deactivate':'Activate'}</button> ${c.items?'':`<button class="btn btn-s btn-sm" onclick="deleteCat('${c.code}')">Delete</button>`}</td></tr>`).join(''):'<tr><td colspan="9" style="text-align:center;color:var(--txm)">No categories yet. Add the first one.</td></tr>';
+  tb.innerHTML=CATS.length?CATS.map(c=>`<tr><td>${escH(c.code)}</td><td><strong>${escH(c.name)}</strong></td><td>${escH(c.desc)}</td><td style="font-size:12px"><div>Inventory: ${glLbl(c.gl)}</div><div>Cost of sales: ${glLbl(c.cos||'2000')}</div><div>Sales: ${glLbl(c.sales||'1000')}</div></td><td>${escH(c.vat)}<div style="font-size:11px;color:var(--txm)">${escH(c.cost)}</div></td><td class="tr">${c.items}</td><td class="tr">${fmtR(c.value)}</td><td><span class="chip ${c.active?'c-ok':'c-nt'}">${c.active?'Active':'Inactive'}</span></td><td><button class="btn btn-s btn-sm" onclick="openCat('${c.code}')">Edit</button> <button class="btn btn-s btn-sm" onclick="toggleCat('${c.code}')">${c.active?'Deactivate':'Activate'}</button> ${c.items?'':`<button class="btn btn-s btn-sm" onclick="deleteCat('${c.code}')">Delete</button>`}</td></tr>`).join(''):'<tr><td colspan="9" style="text-align:center;color:var(--txm)">No categories yet. Add the first one.</td></tr>';
   const sel=$('ai-cat'); if(sel){const cur=sel.value; sel.innerHTML=CATS.filter(c=>c.active).map(c=>`<option>${escH(catLabel(c))}</option>`).join(''); if([...sel.options].some(o=>o.value===cur)) sel.value=cur;}
 }
 function catGlOpts(cur){const L=coaAccounts().filter(a=>a.sec==='Assets'&&(a.active||a.code===cur)); return L.map(a=>`<option value="${a.code}">${escH(a.code+' — '+a.name)}</option>`).join('');}
@@ -4770,9 +4766,9 @@ function openCat(code){
   $('cat-title').textContent=c?'Edit Category '+c.code:'Add Inventory Category';
   const n=CATS.reduce((m,x)=>Math.max(m,parseInt(x.code.replace(/\D/g,''),10)||0),0)+1;
   $('cat-code').value=c?c.code:'CAT-'+String(n).padStart(2,'0'); $('cat-name').value=c?c.name:''; $('cat-desc').value=c?c.desc:'';
-  $('cat-gl').innerHTML=catGlOpts(c?c.gl:''); $('cat-gl').value=c?c.gl:'1150';
+  $('cat-gl').innerHTML=catGlOpts(c?c.gl:''); $('cat-gl').value=c?c.gl:'6200';
   const gopt=(L,cur)=>L.concat(cur&&!L.some(a=>a.code===cur)?coaAccounts().filter(a=>a.code===cur):[]).map(a=>`<option value="${a.code}">${escH(a.code+' — '+a.name)}</option>`).join('');
-  $('cat-cos').innerHTML=gopt(glCosList(),c&&c.cos); $('cat-cos').value=(c&&c.cos)||'5010'; $('cat-sales').innerHTML=gopt(glRevList(),c&&c.sales); $('cat-sales').value=(c&&c.sales)||'4010'; $('cat-vat').value=c?c.vat:'Standard Rate (15%)'; $('cat-cost').value=c?c.cost:'FIFO (First In, First Out)';
+  $('cat-cos').innerHTML=gopt(glCosList(),c&&c.cos); $('cat-cos').value=(c&&c.cos)||'2000'; $('cat-sales').innerHTML=gopt(glRevList(),c&&c.sales); $('cat-sales').value=(c&&c.sales)||'1000'; $('cat-vat').value=c?c.vat:'Standard Rate (15%)'; $('cat-cost').value=c?c.cost:'FIFO (First In, First Out)';
   $('cat-notes').value=c?c.notes:''; $('cat-active').value=c&&!c.active?'0':'1'; showErr('cat-err','');
   stab('inv','addcat',null);
 }
@@ -4805,13 +4801,13 @@ function applySupplier(c){
 function loadSuppliers(){try{const v=JSON.parse(LS.get(SUPX_KEY)||'[]'); SUPX=Array.isArray(v)?v:[];}catch(e){SUPX=[];} SUPX.forEach(applySupplier);}
 function supBal(n){const d=ENQ.sup[n]; let b=d.open||0; d.rows.forEach(r=>b+=(r[4]||0)-(r[3]||0)); return r2(b);}
 const SF=['sf-name','sf-trading','sf-vat','sf-reg','sf-contact','sf-email','sf-phone','sf-bank','sf-street','sf-suburb','sf-city','sf-pc'];
-function fillSupExp(cur){const L=coaAccounts().filter(a=>a.sec==='Expenses'&&(a.active||a.code===cur)); $('sf-exp').innerHTML=L.map(a=>`<option value="${a.code}">${escH(a.code+' — '+a.name)}</option>`).join(''); $('sf-exp').value=cur||'5010';}
-function resetSupForm(){SUP_EDIT=null; SF.forEach(i=>$(i).value=''); $('sf-terms').selectedIndex=0; $('sf-prov').selectedIndex=0; fillSupExp('5010'); $('sf-title').textContent='Add New Supplier'; $('sf-save').innerHTML='<i class="ti ti-device-floppy"></i> Save Supplier'; $('sf-cancel').style.display='none'; showErr('sf-err','');}
+function fillSupExp(cur){const L=coaAccounts().filter(a=>a.sec==='Expenses'&&(a.active||a.code===cur)); $('sf-exp').innerHTML=L.map(a=>`<option value="${a.code}">${escH(a.code+' — '+a.name)}</option>`).join(''); $('sf-exp').value=cur||'2000';}
+function resetSupForm(){SUP_EDIT=null; SF.forEach(i=>$(i).value=''); $('sf-terms').selectedIndex=0; $('sf-prov').selectedIndex=0; fillSupExp('2000'); $('sf-title').textContent='Add New Supplier'; $('sf-save').innerHTML='<i class="ti ti-device-floppy"></i> Save Supplier'; $('sf-cancel').style.display='none'; showErr('sf-err','');}
 function editSupplier(n){
   if(!canSec('suppliers','maint')){deny();return;} const d=ENQ.sup[n]; if(!d) return; const x=SUPX.find(c=>c.name===n)||{};
   resetSupForm(); SUP_EDIT=n; $('sf-title').textContent='Edit Supplier — '+d.code; $('sf-save').innerHTML='<i class="ti ti-device-floppy"></i> Save Changes'; $('sf-cancel').style.display='';
   const sd=SUP_SEED[x.orig||n]||{}; $('sf-name').value=n; $('sf-trading').value=x.trading||''; $('sf-vat').value=x.vat!==undefined?x.vat:(SUPVAT[n]||sd.vat||''); $('sf-reg').value=x.reg||''; $('sf-contact').value=x.contact||''; $('sf-email').value=x.email||SUPEMAIL[n]||sd.email||''; $('sf-phone').value=x.phone||''; $('sf-bank').value=x.bank||'';
-  $('sf-terms').value=x.terms||sd.terms||'30 days'; fillSupExp(x.exp||'5010'); if(x.a){ $('sf-street').value=x.a.street||''; $('sf-suburb').value=x.a.suburb||''; $('sf-city').value=x.a.city||''; $('sf-prov').value=x.a.prov||'Gauteng'; $('sf-pc').value=x.a.pc||''; }
+  $('sf-terms').value=x.terms||sd.terms||'30 days'; fillSupExp(x.exp||'2000'); if(x.a){ $('sf-street').value=x.a.street||''; $('sf-suburb').value=x.a.suburb||''; $('sf-city').value=x.a.city||''; $('sf-prov').value=x.a.prov||'Gauteng'; $('sf-pc').value=x.a.pc||''; }
   stab('sup','add',null);
 }
 function saveSupplier(){
@@ -5169,7 +5165,7 @@ function pqIssue(id){
   if(!canMod('inventory')||!canSec('inventory','trans')){deny();return;} const r=DATA.preq.find(x=>x.id===id); if(!r||r.status!=='Requested') return;
   if(r.qty>pqAvailQty(r.item)){toast('Only '+pqAvailQty(r.item)+' available — cannot issue '+r.qty+'.');return;}
   const pe=checkPostingDate(todayISO()); if(pe){toast(pe);return;}
-  r.status='Issued'; r.issued=todayISO(); r.cost=(STK[r.item]||{}).cost||0; dsave('preq'); logEv('Parts issued',r.id); renderPQ(); toast(r.id+' issued'+(r.wo?' to Work in Progress.':'.')); try{finRenderAll();glEnqSync();renderEnq('gl');}catch(e){}
+  r.status='Issued'; r.issued=todayISO(); r.cost=(STK[r.item]||{}).cost||0; dsave('preq'); logEv('Parts issued',r.id); renderPQ(); toast(r.id+' issued'+(r.wo?' to Work in Progress.':'.')); try{finRenderAll();renderDash();glEnqSync();renderEnq('gl');}catch(e){}
 }
 function pqCancel(id){const r=DATA.preq.find(x=>x.id===id); if(!r||r.status!=='Requested'||!confirm('Cancel '+id+'?')) return; r.status='Cancelled'; dsave('preq'); logEv('Part request cancelled',id); renderPQ();}
 function renderPQ(){
@@ -5193,7 +5189,7 @@ function savePR(){
   if(!val('pr-date')){showErr(E,'Enter the date.');return;} if(val('pr-date')<r.issued){showErr(E,'The return date cannot be before the issue date ('+fmtD(r.issued,1)+').');return;}
   if(!val('pr-reason').trim()){showErr(E,'Enter the reason for the return.');return;}
   const n={id:nextId(DATA.pret,'PT-',5),req:r.id,item:r.item,qty:q,cond:val('pr-cond'),reason:val('pr-reason').trim(),date:val('pr-date')};
-  DATA.pret.push(n); dsave('pret'); logEv('Part returned',n.id+' against '+r.id); closeModal('pr-bg'); renderPR(); renderPQ(); toast(n.id+' saved.'); try{finRenderAll();glEnqSync();renderEnq('gl');}catch(e){}
+  DATA.pret.push(n); dsave('pret'); logEv('Part returned',n.id+' against '+r.id); closeModal('pr-bg'); renderPR(); renderPQ(); toast(n.id+' saved.'); try{finRenderAll();renderDash();glEnqSync();renderEnq('gl');}catch(e){}
 }
 function renderPR(){
   if(!$('pr-body')) return;
@@ -5272,19 +5268,55 @@ initRepOps();
 // ══ Dashboard key ratios (from the Income Statement and Balance Sheet figures shown in this demo) ══
 const RATIO_FIN={days:31,sales:842600,revenue:851000,cos:380200,gross:470800,ebit:314400,net:229512,
   cash:507200,ar:479500,inv:86400,ca:1135500,ta:2356900,ap:318700,cl:455920,eq:1900980};
-function renderRatios(){
-  const F=RATIO_FIN, d=F.days, x=(n,dp)=>n.toFixed(dp===undefined?2:dp), pc=n=>(n*100).toFixed(1)+'%';
-  const dso=F.ar/F.sales*d, dio=F.inv/F.cos*d, dpo=F.ap/F.cos*d;
-  const R=(name,val,hint,ok)=>`<div class="rr"><div><div class="rr-name">${name}</div><div class="rr-desc">${hint}</div></div><div style="text-align:right"><div class="rr-val">${val}</div>${ok===undefined?'':`<span class="chip ${ok?'c-ok':'c-wn'}" style="margin-top:2px">${ok?'Healthy':'Watch'}</span>`}</div></div>`;
+function renderRatios(F){
+  F=F||dashFin(); const d=F.days, x=(n,dp)=>isFinite(n)?n.toFixed(dp===undefined?2:dp):'—', pc=n=>isFinite(n)?(n*100).toFixed(1)+'%':'—', dv=(a,b)=>b?a/b:NaN, ok=(v,t,ge)=>isFinite(v)?(ge?v>=t:v<=t):undefined;
+  const dso=dv(F.ar,F.revenue)*d, dio=dv(F.inv,F.cos)*d, dpo=dv(F.ap,F.cos)*d;
+  const R=(name,val,hint,okv)=>`<div class="rr"><div><div class="rr-name">${name}</div><div class="rr-desc">${hint}</div></div><div style="text-align:right"><div class="rr-val">${val}</div>${okv===undefined?'':`<span class="chip ${okv?'c-ok':'c-wn'}" style="margin-top:2px">${okv?'Healthy':'Watch'}</span>`}</div></div>`;
   const card=(t,rows)=>`<div class="card" style="margin:0"><div class="card-title">${t}</div>${rows.join('')}</div>`;
-  $('rt-basis').textContent='Based on March 2025 figures ('+d+' days)';
+  const cr=dv(F.ca,F.cl), qr=dv(F.ca-F.inv,F.cl), cashr=dv(F.cash,F.cl), gm=dv(F.gross,F.revenue), om=dv(F.ebit,F.revenue), nm=dv(F.net,F.revenue), de=dv(F.cl,F.eq), er=dv(F.eq,F.ta), ccc=dso+dio-dpo;
+  $('rt-basis').textContent='Based on '+F.label+' ('+d+' days)';
   $('rt-grid').innerHTML=
-   card('Liquidity',[R('Current ratio',x(F.ca/F.cl),'Current assets ÷ current liabilities',F.ca/F.cl>=1.5),R('Quick ratio',x((F.ca-F.inv)/F.cl),'(Current assets − inventory) ÷ current liabilities',(F.ca-F.inv)/F.cl>=1),R('Cash ratio',x(F.cash/F.cl),'Cash ÷ current liabilities',F.cash/F.cl>=0.5)])+
-   card('Working capital efficiency',[R('Debtors days',x(dso,1)+' days','Receivables ÷ sales × days',dso<=45),R('Creditors days',x(dpo,1)+' days','Payables ÷ cost of sales × days'),R('Stock days',x(dio,1)+' days','Inventory ÷ cost of sales × days'),R('Cash conversion cycle',x(dso+dio-dpo,1)+' days','Debtors days + stock days − creditors days',dso+dio-dpo<=60)])+
-   card('Profitability',[R('Gross profit margin',pc(F.gross/F.revenue),'Gross profit ÷ revenue',F.gross/F.revenue>=0.3),R('Operating profit margin',pc(F.ebit/F.revenue),'Operating profit ÷ revenue',F.ebit/F.revenue>=0.1),R('Net profit margin',pc(F.net/F.revenue),'Profit after tax ÷ revenue',F.net/F.revenue>=0.08),R('Return on equity',pc(F.net/F.eq),'Profit after tax ÷ equity (for the period)')])+
-   card('Solvency',[R('Debt-to-equity',x(F.cl/F.eq),'Total liabilities ÷ equity',F.cl/F.eq<=1),R('Equity ratio',pc(F.eq/F.ta),'Equity ÷ total assets',F.eq/F.ta>=0.4),R('Working capital',fmtR(F.ca-F.cl),'Current assets − current liabilities',F.ca-F.cl>0)]);
+   card('Liquidity',[R('Current ratio',x(cr),'Current assets ÷ current liabilities',ok(cr,1.5,true)),R('Quick ratio',x(qr),'(Current assets − inventory) ÷ current liabilities',ok(qr,1,true)),R('Cash ratio',x(cashr),'Cash ÷ current liabilities',ok(cashr,0.5,true))])+
+   card('Working capital efficiency',[R('Debtors days',x(dso,1)+(isFinite(dso)?' days':''),'Receivables ÷ revenue × days',ok(dso,45,false)),R('Creditors days',x(dpo,1)+(isFinite(dpo)?' days':''),'Payables ÷ cost of sales × days'),R('Stock days',x(dio,1)+(isFinite(dio)?' days':''),'Inventory ÷ cost of sales × days'),R('Cash conversion cycle',x(ccc,1)+(isFinite(ccc)?' days':''),'Debtors days + stock days − creditors days',ok(ccc,60,false))])+
+   card('Profitability',[R('Gross profit margin',pc(gm),'Gross profit ÷ revenue',ok(gm,0.3,true)),R('Operating profit margin',pc(om),'Operating profit ÷ revenue',ok(om,0.1,true)),R('Net profit margin',pc(nm),'Profit after tax ÷ revenue',ok(nm,0.08,true)),R('Return on equity',pc(dv(F.net,F.eq)),'Profit after tax ÷ equity (for the period)')])+
+   card('Solvency',[R('Debt-to-equity',x(de),'Total liabilities ÷ equity',ok(de,1,false)),R('Equity ratio',pc(er),'Equity ÷ total assets',ok(er,0.4,true)),R('Working capital',fmtR(F.ca-F.cl),'Current assets − current liabilities',F.ca-F.cl>0)]);
 }
-renderRatios();
+// ══ Dashboard: year to date / financial year ══
+function dbFYs(){ return FYS.slice().sort((a,b)=>a.start<b.start?-1:1); }
+function dbCur(){ const l=dbFYs(), t=todayISO(); return l.find(f=>f.current)||l.find(f=>f.start<=t&&t<=f.end)||l[l.length-1]; }
+function dashFin(){
+  const l=dbFYs(), sel=$('db-fy')?$('db-fy').value:'', fy=l.find(f=>f.id===sel)||dbCur(), mode=$('db-mode')?$('db-mode').value:'ytd';
+  const from=fy?fy.start:'', to=fy?(mode==='ytd'&&todayISO()<fy.end?(todayISO()<fy.start?fy.start:todayISO()):fy.end):'';
+  const M=finModel(), pl=c=>M.plNet(c,from,to), cm=c=>(to&&to<BASE_END)?M.mv(c,'',to):M.cum(c,to), sum=(f,fn)=>M.codes.filter(f).reduce((t,c)=>t+fn(c),0);
+  const revenue=-sum(c=>c<'2000'||(c>='3000'&&c<'4000'),pl), cos=sum(c=>c>='2000'&&c<'3000',pl), expAll=sum(c=>(c>='2000'&&c<'3000')||(c>='4000'&&c<'5000'),pl), gross=revenue-cos, ebit=revenue-expAll, tax=ebit>0?ebit*0.27:0, net=ebit-tax;
+  const cash=sum(c=>M.acc[c].type==='Bank',cm), ar=cm('6100')||0, inv=(cm('6200')||0)+(cm('6220')||0), ca=sum(c=>c>='6000'&&c<'7000',cm), ta=sum(c=>c>='5000'&&c<'7000',cm), cl=-sum(c=>c>='8000',cm), ap=-(cm('9000')||0), vat=-((cm('9100')||0)+(cm('6300')||0));
+  const days=from&&to?Math.max(1,daysBetween(from,to)+1):365;
+  return {fy,from,to,mode,M,revenue,cos,expAll,gross,ebit,net,cash,ar,inv,ca,ta,cl,ap,eq:ta-cl,vat,days,label:fy?fy.name+(mode==='ytd'&&to<fy.end?' to '+fmtD(to,1):''):'all periods'};
+}
+function dbFill(){ const e=$('db-fy'); if(!e) return; const cur=e.value, l=dbFYs(); e.innerHTML=l.map(f=>`<option value="${f.id}">${escH(f.name)}${f.current?' (current)':''}</option>`).join(''); const c=dbCur(); e.value=l.some(f=>f.id===cur)?cur:(c?c.id:''); }
+function dbStep(n){ const e=$('db-fy'), l=dbFYs(), i=l.findIndex(f=>f.id===e.value), j=i+n; if(j<0||j>=l.length){toast(n<0?'This is the earliest financial year.':'This is the latest financial year.');return;} e.value=l[j].id; renderDash(); }
+function dbCurrent(){ const c=dbCur(); if(c) $('db-fy').value=c.id; $('db-mode').value='ytd'; renderDash(); }
+function renderDash(){
+  if(!$('db-rev')) return; dbFill(); const F=dashFin(), m=F.mode==='ytd'?'YTD':'FY', f=n=>fmtR(r2(Math.abs(n)<0.005?0:n));
+  $('db-lbl').textContent=F.fy?(F.mode==='ytd'?'Year to date · ':'')+F.fy.name+' ('+fmtD(F.from,1)+' – '+fmtD(F.to,1)+')':'No financial year';
+  document.querySelectorAll('#page-dashboard .kpi-lbl').forEach((e,i)=>{e.textContent=['Revenue','Expenses','Net Profit','VAT Liability'][i]+(i<3?' ('+m+')':'');});
+  $('db-rev').textContent=f(F.revenue); $('db-exp').textContent=f(F.expAll); $('db-net').textContent=f(F.net); $('db-net').style.color=F.net>=0?'var(--ok)':'var(--dn)';
+  $('db-rev-s').textContent=''; $('db-exp-s').textContent=F.revenue?Math.round(F.expAll/F.revenue*100)+'% of revenue':''; $('db-net-s').textContent=F.revenue?'Margin '+(F.net/F.revenue*100).toFixed(1)+'% (after 27% tax)':'';
+  $('db-vat').textContent=f(F.vat); $('db-vat').style.color=F.vat>0?'var(--wn)':''; $('db-vat-s').textContent=F.vat>0?'Output − input VAT, payable':F.vat<0?'Refundable':'';
+  // monthly revenue bars
+  const M=F.M, bars=[], labs=[]; if(F.fy){ const base=(!F.from||F.from<=BASE_START)&&F.to>=BASE_END, rev=(a,b)=>-M.codes.filter(c=>c<'2000'||(c>='3000'&&c<'4000')).reduce((t,c)=>t+M.mv(c,a,b),0);
+    if(base){ const b0=-M.codes.filter(c=>c<'2000'||(c>='3000'&&c<'4000')).reduce((t,c)=>t+(M.acc[c].base||0),0); if(b0){bars.push(b0); labs.push('Opening');} }
+    let d=F.fy.start; for(let i=0;i<12;i++){ const a=d, z=dayAdd(addMonths(a,1),-1); if(a>F.to) break; bars.push(rev(a,z)); labs.push(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+a.slice(5,7)-1]); d=dayAdd(z,1); } }
+  const mx=Math.max(1,...bars); $('db-bars').innerHTML=bars.length?bars.map((v,i)=>`<div class="bar" title="${escH(labs[i]+': '+fmtR(r2(v)))}" style="height:${Math.max(2,Math.round(v/mx*100))}%"></div>`).join(''):''; $('db-bar-lbl').innerHTML=labs.map(l=>`<span>${escH(l)}</span>`).join('');
+  $('db-asat').textContent='as at '+(F.to?fmtD(F.to,1):'');
+  const row=(n,v,c)=>`<div class="rr"><div class="rr-name">${n}</div><div class="rr-val"${c?` style="color:${c}"`:''}>${f(v)}</div></div>`;
+  $('db-pos').innerHTML=row('Cash at bank',F.cash)+row('Debtors (receivables)',F.ar)+row('Creditors (payables)',F.ap)+row('VAT payable / (refundable)',F.vat,F.vat>0?'var(--wn)':'')+`<div class="rr" style="border:none"><div class="rr-name" style="font-weight:700">Equity</div><div class="rr-val">${f(F.eq)}</div></div>`;
+  const cb=Object.keys(ENQ.cust).map(n=>[n,custBal(n)]).filter(x=>x[1]>0.004).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  $('db-cust').innerHTML=cb.length?cb.map(x=>`<tr><td>${escH(x[0])}</td><td class="tr">${fmtR(r2(x[1]))}</td></tr>`).join(''):'<tr><td colspan="2" style="text-align:center;color:var(--txm)">No outstanding balances.</td></tr>';
+  const te=M.codes.filter(c=>(c>='2000'&&c<'3000')||(c>='4000'&&c<'5000')).map(c=>[c,M.plNet(c,F.from,F.to)]).filter(x=>x[1]>0.004).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  $('db-exp-p').textContent=F.fy?F.fy.name:''; $('db-top').innerHTML=te.length?te.map(x=>`<tr><td>${escH(x[0]+' — '+M.acc[x[0]].name)}</td><td class="tr">${fmtR(r2(x[1]))}</td></tr>`).join(''):'<tr><td colspan="2" style="text-align:center;color:var(--txm)">No expenses in this period.</td></tr>';
+  renderRatios(F);
+}
 
 // ══ Shared document template (same look as customer statements) ══
 function supBlock(name,label){const d=ENQ.sup[name]||{}; return {label:label,name,lines:[d.code?'ACCOUNT: '+d.code:'',SUPVAT[name]?'SUPPLIER VAT NO: '+SUPVAT[name]:'',SUPEMAIL[name]||''].filter(Boolean)};}
@@ -5340,13 +5372,13 @@ function refreshStock(){
 let INV_META=null;
 function renderInvItems(){
   const tb=$('ii-body'); if(!tb) return;
-  if(!INV_META){INV_META={}; let grp=''; [...tb.rows].forEach(r=>{ if(r.classList.contains('ts')){grp=r.textContent.trim();return;} const c=r.cells; INV_META[c[0].textContent.trim()]={grp,cat:c[2].textContent,unit:c[3].textContent,sell:c[5].textContent,order:Object.keys(INV_META).length}; }); }
+  if(!INV_META){INV_META={}; let grp=''; if(!CO_BLANK()) [...tb.rows].forEach(r=>{ if(r.classList.contains('ts')){grp=r.textContent.trim();return;} const c=r.cells; INV_META[c[0].textContent.trim()]={grp,cat:c[2].textContent,unit:c[3].textContent,sell:c[5].textContent,order:Object.keys(INV_META).length}; }); }
   const items=Object.keys(STK).map(k=>{const sku=k.split(' — ')[0], m=INV_META[sku]||{grp:'Other',cat:'—',unit:'Each',sell:'—',order:999}; return {k,sku,name:k.split(' — ')[1]||k,m,q:stkQty(k),cost:STK[k].cost};}).sort((a,b)=>a.m.order-b.m.order);
   let h='', last=null, tv=0, low=0, out=0;
   items.forEach(i=>{ if(i.m.grp!==last){h+='<tr class="ts"><td colspan="9">'+escH(i.m.grp)+'</td></tr>'; last=i.m.grp;}
     const v=r2(i.q*i.cost); tv+=v; const st=i.q<=0?['c-dn','Out of Stock']:i.q<=5?['c-wn','Low Stock']:['c-ok','In Stock']; if(i.q<=0) out++; else if(i.q<=5) low++;
     h+='<tr><td>'+escH(i.sku)+'</td><td>'+escH(i.name)+'</td><td>'+escH(i.m.cat)+'</td><td>'+escH(i.m.unit)+'</td><td class="tr">'+fmtR(i.cost)+'</td><td class="tr">'+escH(i.m.sell)+'</td><td class="tr">'+i.q+'</td><td class="tr">'+fmtR(v)+'</td><td><span class="chip '+st[0]+'">'+st[1]+'</span></td></tr>'; });
-  tb.innerHTML=h; $('ii-n').textContent=items.length; $('ii-nc').textContent='Across '+new Set(items.map(i=>i.m.grp)).size+' categories'; $('ii-v').textContent=fmtR(r2(tv)); $('ii-l').textContent=low; $('ii-o').textContent=out;
+  tb.innerHTML=h||'<tr><td colspan="9" style="text-align:center;color:var(--txm)">No inventory items yet. Add one under Add Item.</td></tr>'; try{fillAiSup();}catch(e){} $('ii-n').textContent=items.length; $('ii-nc').textContent='Across '+new Set(items.map(i=>i.m.grp)).size+' categories'; $('ii-v').textContent=fmtR(r2(tv)); $('ii-l').textContent=low; $('ii-o').textContent=out;
 }
 renderInvItems();
 
@@ -5359,7 +5391,7 @@ function refreshSupViews(){ try{ renderEnq('sup'); renderAge('sup'); renderSupLi
 const NIT_KEY='apex_nit_v1'; let NIT=[], NIT_EDIT=null;
 const saveNITs=()=>{try{LS.set(NIT_KEY,JSON.stringify(NIT));}catch(e){toast('Could not save in this browser.');}};
 function loadNIT(){let v=null; try{v=JSON.parse(LS.get(NIT_KEY)||'null');}catch(e){}
-  NIT=Array.isArray(v)?v:(CO_BLANK()?[]:[{id:'NI-001',name:'Professional Services',desc:'Professional services',price:850,vat:'15',gl:'4010',active:true},{id:'NI-002',name:'Delivery / Freight',desc:'Delivery charge',price:150,vat:'15',gl:'4010',active:true},{id:'NI-003',name:'Installation Labour',desc:'Installation labour',price:600,vat:'15',gl:'4010',active:true}]);}
+  NIT=Array.isArray(v)?v:(CO_BLANK()?[]:[{id:'NI-001',name:'Professional Services',desc:'Professional services',price:850,vat:'15',gl:'1000',active:true},{id:'NI-002',name:'Delivery / Freight',desc:'Delivery charge',price:150,vat:'15',gl:'1000',active:true},{id:'NI-003',name:'Installation Labour',desc:'Installation labour',price:600,vat:'15',gl:'1000',active:true}]);}
 const nitUse=id=>DATA.sales.reduce((t,i)=>t+i.lines.filter(l=>l.type==='non'&&l.item===id).length,0);
 function renderNIT(){
   fillGlSelects();
@@ -5418,7 +5450,7 @@ function saveSI2(){
   for(const l of L){ if(!l.item){showErr(E,'Select an item on every line (choose the Item Type first).');return;} if(!(l.qty>0)){showErr(E,'Every line needs a quantity above zero.');return;} if(l.price<0){showErr(E,'Prices cannot be negative.');return;}
     if(l.type==='inv') need[l.item]=(need[l.item]||0)+l.qty; }
   for(const k in need){ if(need[k]>siAvail(k)+1e-9){showErr(E,'Not enough stock of “'+k+'”: '+siAvail(k)+' available, '+need[k]+' on this invoice.');return;} }
-  const lines=L.map(l=>{ if(l.type==='inv') return {type:'inv',item:l.item,desc:l.item.split(' — ')[1]||l.item,qty:l.qty,price:l.price,vat:l.vatc==='15'?15:0,cost:STK[l.item].cost,gl:catFor(l.item).sales||'4010',cos:catFor(l.item).cos||'5010',invgl:catFor(l.item).gl||'1150'};
+  const lines=L.map(l=>{ if(l.type==='inv') return {type:'inv',item:l.item,desc:l.item.split(' — ')[1]||l.item,qty:l.qty,price:l.price,vat:l.vatc==='15'?15:0,cost:STK[l.item].cost,gl:catFor(l.item).sales||'1000',cos:catFor(l.item).cos||'2000',invgl:catFor(l.item).gl||'6200'};
     const t=NIT.find(x=>x.id===l.item); return {type:'non',item:l.item,desc:t.desc||t.name,qty:l.qty,price:l.price,vat:l.vatc==='15'?15:0,gl:t.gl}; });
   const ex=r2(lines.reduce((t,l)=>t+l.qty*l.price,0)), vat=r2(lines.reduce((t,l)=>t+r2(l.qty*l.price*l.vat/100),0));
   const inv={id:siRef(date),cust,date,due,ref:val('si2-ref').trim(),lines,ex,vat,tot:r2(ex+vat)};
@@ -5481,12 +5513,12 @@ function cbPerPick(){const id=val('cbr-per'); if(!id) return; const t=todayISO()
 let TB_BASE=null;
 
 // ══ Service: parts issued → Work in Progress → Cost of Sales ══
-const GL_WIP='1160';
+const GL_WIP='6210';
 function ensureWIP(){ if(typeof ACC==='undefined') return; if(!ACC.some(a=>a.code===GL_WIP)){ ACC.push({code:GL_WIP,name:'Work in Progress',type:'Current Asset',vat:'—',bal:0,active:true,due:false}); try{saveCOA();}catch(e){} try{renderCOA();}catch(e){} } }
 function glWip(){
   const J=[], add=(date,ref,src,desc,L)=>J.push({date,ref,src,desc,lines:L.map(l=>({acc:l[0],dr:l[1]||0,cr:l[2]||0}))});
   (DATA.preq||[]).filter(r=>r.status==='Issued'&&r.issued).forEach(r=>{
-    const cost=r.cost!=null?r.cost:((STK[r.item]||{}).cost||0), cat=(STK[r.item]?catFor(r.item):{})||{}, inv=cat.gl||'1150', cos=cat.cos||'5010', v=r2(r.qty*cost); if(!v) return;
+    const cost=r.cost!=null?r.cost:((STK[r.item]||{}).cost||0), cat=(STK[r.item]?catFor(r.item):{})||{}, inv=cat.gl||'6200', cos=cat.cos||'2000', v=r2(r.qty*cost); if(!v) return;
     const w=DATA.wo.find(x=>x.id===r.wo), c=w?DATA.calls.find(x=>x.id===w.call):null, ret=DATA.pret.filter(x=>x.req===r.id&&String(x.cond).startsWith('Good'));
     const done=c&&c.status==='Completed', cd=done?((c.completed||r.issued)<r.issued?r.issued:(c.completed||r.issued)):'';
     const desc=(r.wo||'Direct issue')+' · '+r.item.split(' — ')[0];
@@ -5502,13 +5534,13 @@ function glJournal(){ return glJournalBase().concat(glWip(),glBB(),glCV()); }
 
 function glJournalBase(){
   const J=[], add=(date,ref,src,desc,L)=>{L=L.filter(l=>l.dr||l.cr); if(L.length) J.push({date,ref,src,desc,lines:L});};
-  (DATA.bill||[]).forEach(b=>{ const cr=(b.lines||[]).map(l=>({acc:l.rev||'4010',dr:0,cr:r2(+l.ex||0)})); if(b.vat) cr.push({acc:'2100',dr:0,cr:r2(b.vat)});
-    const t=r2(cr.reduce((x,l)=>x+l.cr,0)); add(b.date,b.no,'Contract Invoice',b.cust,[{acc:'1100',dr:t,cr:0}].concat(cr)); });
+  (DATA.bill||[]).forEach(b=>{ const cr=(b.lines||[]).map(l=>({acc:l.rev||'1000',dr:0,cr:r2(+l.ex||0)})); if(b.vat) cr.push({acc:'9100',dr:0,cr:r2(b.vat)});
+    const t=r2(cr.reduce((x,l)=>x+l.cr,0)); add(b.date,b.no,'Contract Invoice',b.cust,[{acc:'6100',dr:t,cr:0}].concat(cr)); });
   (DATA.sales||[]).forEach(i=>{ const L=[], cr=[];
-    i.lines.forEach(l=>{ cr.push({acc:l.gl||'4010',dr:0,cr:r2(l.qty*l.price)}); if(l.type==='inv'&&l.cost){ const c=r2(l.qty*l.cost); L.push({acc:l.cos||'5010',dr:c,cr:0},{acc:l.invgl||'1150',dr:0,cr:c}); } });
-    if(i.vat) cr.push({acc:'2100',dr:0,cr:r2(i.vat)}); const t=r2(cr.reduce((x,l)=>x+l.cr,0));
-    add(i.date,i.id,'Sales Invoice',i.cust,[{acc:'1100',dr:t,cr:0}].concat(cr,L)); });
-  (DATA.sinv||[]).forEach(n=>{ add(n.date,n.id,'Supplier Invoice',n.sup,[{acc:n.acc||'5010',dr:r2(n.ex),cr:0},{acc:'1200',dr:r2(n.vat||0),cr:0},{acc:'2010',dr:0,cr:r2(n.tot)}]); });
+    i.lines.forEach(l=>{ cr.push({acc:l.gl||'1000',dr:0,cr:r2(l.qty*l.price)}); if(l.type==='inv'&&l.cost){ const c=r2(l.qty*l.cost); L.push({acc:l.cos||'2000',dr:c,cr:0},{acc:l.invgl||'6200',dr:0,cr:c}); } });
+    if(i.vat) cr.push({acc:'9100',dr:0,cr:r2(i.vat)}); const t=r2(cr.reduce((x,l)=>x+l.cr,0));
+    add(i.date,i.id,'Sales Invoice',i.cust,[{acc:'6100',dr:t,cr:0}].concat(cr,L)); });
+  (DATA.sinv||[]).forEach(n=>{ add(n.date,n.id,'Supplier Invoice',n.sup,[{acc:n.acc||'2000',dr:r2(n.ex),cr:0},{acc:'6300',dr:r2(n.vat||0),cr:0},{acc:'9000',dr:0,cr:r2(n.tot)}]); });
   return J;
 }
 function tbParseBase(){
@@ -5527,16 +5559,16 @@ function renderTB(){
   if(!TB_BASE) TB_BASE=tbParseBase(); if(!TB_BASE.length) return;
   const M=finModel(), F=FIN.from, T=FIN.to, mode=(document.getElementById('fin-tbmode')||{value:'bal'}).value;
   let adj=0; if(mode==='bal'){ let cp=0,dp=0; M.codes.filter(M.isPL).forEach(c=>{cp+=M.cum(c,T); dp+=M.plNet(c,F,T);}); adj=r2(cp-dp); }
-  const netOf=c=>mode==='mov'?M.mv(c,F,T):(M.isPL(c)?M.plNet(c,F,T):M.cum(c,T)+(c==='3020'?adj:0));
-  const secOf={}; TB_BASE.forEach(sc=>sc.rows.forEach(r=>secOf[r.code]=sc.name));
-  const extra={}; M.codes.forEach(c=>{ if(secOf[c]) return; const a=M.acc[c]; const sec=TB_BASE.find(sc=>sc.name.toLowerCase()===String(a.sec).toLowerCase())||TB_BASE[TB_BASE.length-1]; (extra[sec.name]=extra[sec.name]||[]).push({code:c,name:a.name,type:a.type}); });
+  const netOf=c=>mode==='mov'?M.mv(c,F,T):(M.isPL(c)?M.plNet(c,F,T):M.cum(c,T)+(c==='7010'?adj:0));
   const f=n=>'R '+n.toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}), dash='<td class="tr" style="color:var(--txm)">—</td>';
   let h='', TD=0, TC=0;
-  TB_BASE.forEach(sc=>{ h+=`<tr class="ts"><td colspan="5">${escH(sc.name)}</td></tr>`; let sd=0,sc2=0;
-    sc.rows.concat(extra[sc.name]||[]).sort((a,b)=>a.code<b.code?-1:1).forEach(r=>{ const net=r2(netOf(r.code)), d=net>0?net:0, c=net<0?-net:0; sd+=d; sc2+=c;
-      h+=`<tr data-nz="${net?1:0}"><td>${r.code}</td><td>${escH((M.acc[r.code]||r).name)}</td><td>${escH(r.type)}</td>${d?`<td class="tr">${f(d)}</td>`:dash}${c?`<td class="tr">${f(c)}</td>`:dash}</tr>`; });
+  const baseRow={}; TB_BASE.forEach(sc=>sc.rows.forEach(r=>baseRow[r.code]=r));
+  COA_GROUPS.forEach((g,gi)=>{ const codes=M.codes.filter(c=>+c[0]===gi+1).sort(); if(!codes.length) return;
+    h+=`<tr class="ts"><td colspan="5">${(gi+1)*1000}s — ${escH(g.name)}</td></tr>`; let sd=0,sc2=0;
+    codes.forEach(c=>{ const r=baseRow[c]||{}, a=M.acc[c]||{}; const net=r2(netOf(c)), d=net>0?net:0, cr=net<0?-net:0; sd+=d; sc2+=cr;
+      h+=`<tr data-nz="${net?1:0}"><td>${c}</td><td>${escH(a.name||r.name||'')}</td><td>${escH(a.type||r.type||'')}</td>${d?`<td class="tr">${f(d)}</td>`:dash}${cr?`<td class="tr">${f(cr)}</td>`:dash}</tr>`; });
     TD+=sd; TC+=sc2;
-    h+=`<tr class="tt"><td colspan="3" style="padding-left:20px;font-size:12px;color:var(--txm)">Subtotal — ${escH(sc.name)}</td><td class="tr">${sd?f(sd):'—'}</td><td class="tr">${sc2?f(sc2):'—'}</td></tr>`; });
+    h+=`<tr class="tt"><td colspan="3" style="padding-left:20px;font-size:12px;color:var(--txm)">Subtotal — ${escH(g.name)}</td><td class="tr">${sd?f(sd):'—'}</td><td class="tr">${sc2?f(sc2):'—'}</td></tr>`; });
   TD=r2(TD); TC=r2(TC);
   h+=`<tr class="tg"><td colspan="3">Grand Total</td><td class="tr" style="color:var(--ac)">${f(TD)}</td><td class="tr" style="color:var(--ac)">${f(TC)}</td></tr>`;
   tb.innerHTML=h;
@@ -5567,12 +5599,12 @@ function finEnt(){ const E={}; glJournal().forEach(j=>j.lines.forEach(l=>{(E[l.a
 function finModel(){
   if(!TB_BASE) TB_BASE=tbParseBase();
   const E=finEnt(), acc={};
-  TB_BASE.forEach(sc=>sc.rows.forEach(r=>acc[r.code]={code:r.code,name:r.name,type:r.type,sec:sc.name,base:r.base}));
+  TB_BASE.forEach(sc=>sc.rows.forEach(r=>acc[r.code]={code:r.code,name:r.name,type:r.type,sec:(coaGroup(r.code)||{}).sec||sc.name,base:r.base}));
   coaAccounts().forEach(a=>{ if(!acc[a.code]) acc[a.code]={code:a.code,name:a.name,type:a.sec,sec:a.sec,base:0}; else acc[a.code].name=a.name; });
   Object.keys(E).forEach(c=>{ if(!acc[c]) acc[c]={code:c,name:'Account '+c,type:'',sec:'Expenses',base:0}; });
   const mv=(c,f,t)=>(E[c]||[]).reduce((x,e)=>(!f||e[0]>=f)&&(!t||e[0]<=t)?x+e[1]:x,0);
   const baseIn=(f,t)=>(!f||f<=BASE_START)&&(!t||t>=BASE_END);
-  const isPL=c=>c[0]>='4';
+  const isPL=c=>c<'5000';
   const plNet=(c,f,t)=>r2((baseIn(f,t)?acc[c].base:0)+mv(c,f,t));
   const cum=(c,t)=>r2(acc[c].base+mv(c,'',t));
   return {acc,mv,isPL,plNet,cum,codes:Object.keys(acc).sort()};
@@ -5597,8 +5629,8 @@ function finDate(){ const f=document.querySelector('.fin-from'), t=document.quer
   finRenderAll(); }
 function finClear(){FIN.fy='';FIN.from='';FIN.to='';finRenderAll();}
 function finBad(){ if(FIN.from&&FIN.to&&FIN.to<FIN.from){toast('The To date cannot be before the From date.'); return true;} return false; }
-function finRenderAll(){ finSync(); if(finBad()) return; renderTB(); renderPL(); renderBS(); }
-const fpos=n=>'R '+n.toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}), fpar=n=>n<0?'(R '+Math.abs(n).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2})+')':fpos(n);
+function finRenderAll(){ finSync(); if(finBad()) return; renderTB(); renderPL(); renderBS(); try{renderDash();}catch(e){} }
+const fpos=n=>'R '+(Math.abs(n)<0.005?0:n).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}), fpar=n=>(n=Math.abs(n)<0.005?0:n)<0?'(R '+Math.abs(n).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2})+')':fpos(n);
 function finInit(){
   ['rpt-pl','rpt-bs'].forEach(id=>{const e=document.getElementById(id); if(e&&!e.querySelector('.fin-bar')) e.insertAdjacentHTML('afterbegin','<div class="fin-bar" style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">'+finBar()+'</div>');});
   const bs=document.querySelector('#rpt-bs .fin-bar'); if(bs&&!bs.querySelector('.fin-note')) bs.insertAdjacentHTML('beforeend','<span class="fin-note" style="font-size:12px;color:var(--txm)">Balance sheet is as at the To date.</span>');
@@ -5606,15 +5638,13 @@ function finInit(){
 }
 function renderPL(){
   const t=document.querySelector('#rpt-pl tbody'); if(!t) return; const M=finModel(), F=FIN.from, T=FIN.to;
-  const rows=c=>M.codes.filter(x=>x[0]===c);
-  const line=(a,n,ind)=>`<tr><td style="padding-left:20px">${escH(a.name)}</td><td class="tr">${fpar(n)}</td></tr>`;
-  let h='<tr><td colspan="2" style="font-weight:700;padding-top:10px">Revenue</td></tr>', rev=0, cos=0, opx=0;
-  rows('4').forEach(c=>{const n=-M.plNet(c,F,T); if(n||c==='4010'){rev+=n; h+=line(M.acc[c],n);}});
-  h+=`<tr class="tt"><td>Total Revenue</td><td class="tr">${fpar(r2(rev))}</td></tr>`;
-  cos=M.plNet('5010',F,T); h+=`<tr><td style="padding-left:20px">${escH((M.acc['5010']||{name:'Cost of Sales'}).name)}</td><td class="tr">${fpar(-cos)}</td></tr>`;
-  const gp=r2(rev-cos); h+=`<tr class="tt"><td>Gross Profit</td><td class="tr" style="color:var(--ok)">${fpar(gp)}</td></tr><tr><td colspan="2" style="font-weight:700;padding-top:10px">Operating Expenses</td></tr>`;
-  rows('5').filter(c=>c!=='5010').forEach(c=>{const n=M.plNet(c,F,T); if(n){opx+=n; h+=line(M.acc[c],-n);}});
-  const pbt=r2(gp-opx), tax=pbt>0?r2(pbt*0.27):0;
+  const rows=(lo,hi)=>M.codes.filter(x=>x>=lo&&x<hi);
+  const line=(a,n)=>`<tr><td style="padding-left:20px">${escH(a.code+' — '+a.name)}</td><td class="tr">${fpar(n)}</td></tr>`;
+  const sec=(title,lo,hi,sign,keep)=>{ let tot=0,h=`<tr><td colspan="2" style="font-weight:700;padding-top:10px">${title}</td></tr>`; rows(lo,hi).forEach(c=>{const n=sign*M.plNet(c,F,T); if(n||c===keep){tot+=n; h+=line(M.acc[c],n);}}); return {tot:r2(tot),h}; };
+  const sal=sec('Sales','1000','2000',-1,'1000'), cos=sec('Cost of Sales','2000','3000',1), oth=sec('Other Income','3000','4000',-1), ovh=sec('Overheads','4000','5000',1);
+  const gp=r2(sal.tot-cos.tot), pbt=r2(gp+oth.tot-ovh.tot), tax=pbt>0?r2(pbt*0.27):0;
+  let h=sal.h+`<tr class="tt"><td>Total Sales</td><td class="tr">${fpar(sal.tot)}</td></tr>`+cos.h.replace(/<tr><td colspan="2"[^>]*>Cost of Sales<\/td><\/tr>/,'<tr><td colspan="2" style="font-weight:700;padding-top:10px">Cost of Sales</td></tr>')+`<tr class="tt"><td>Total Cost of Sales</td><td class="tr">${fpar(-cos.tot)}</td></tr><tr class="tt"><td>Gross Profit</td><td class="tr" style="color:var(--ok)">${fpar(gp)}</td></tr>`;
+  h+=oth.h+`<tr class="tt"><td>Total Other Income</td><td class="tr">${fpar(oth.tot)}</td></tr>`+ovh.h+`<tr class="tt"><td>Total Overheads</td><td class="tr">${fpar(-ovh.tot)}</td></tr>`;
   h+=`<tr class="tt"><td>Operating Profit (EBIT)</td><td class="tr" style="color:var(--ok)">${fpar(pbt)}</td></tr><tr class="tt"><td>Profit Before Tax</td><td class="tr">${fpar(pbt)}</td></tr><tr><td style="padding-left:20px;color:var(--wn)">Corporate Tax @ 27%</td><td class="tr" style="color:var(--wn)">${fpar(-tax)}</td></tr><tr class="tg"><td>Net Profit After Tax</td><td class="tr" style="color:var(--ok)">${fpar(r2(pbt-tax))}</td></tr>`;
   t.innerHTML=h; const ti=document.querySelector('#rpt-pl .card-title'); if(ti) ti.textContent='Income Statement — '+finPeriodLabel();
 }
@@ -5625,8 +5655,8 @@ function renderBS(){
   let cumPL=0, curPL=0; M.codes.filter(M.isPL).forEach(c=>{cumPL+=bal(c); curPL+=M.plNet(c,fs,T);}); cumPL=r2(cumPL); curPL=r2(curPL);
   const ln=(a,n,ind)=>`<tr><td style="padding-left:36px">${escH(a.name)}</td><td class="tr">${fpar(n)}</td></tr>`;
   const grp=(codes,sign)=>{let tot=0,h=''; codes.forEach(c=>{const n=r2(sign*bal(c)); if(n){tot+=n; h+=ln(M.acc[c],n);}}); return {tot:r2(tot),h};};
-  const ca=grp(M.codes.filter(c=>c[0]==='1'&&c<'1500'),1), nca=grp(M.codes.filter(c=>c[0]==='1'&&c>='1500'),1), li=grp(M.codes.filter(c=>c[0]==='2'),-1);
-  const eq=grp(M.codes.filter(c=>c[0]==='3'&&c!=='3020'),-1), re=r2(-(bal('3020')+cumPL-curPL)), cy=r2(-curPL), te=r2(eq.tot+re+cy), ta=r2(ca.tot+nca.tot);
+  const ca=grp(M.codes.filter(c=>c>='6000'&&c<'7000'),1), nca=grp(M.codes.filter(c=>c>='5000'&&c<'6000'),1), li=grp(M.codes.filter(c=>c>='8000'),-1);
+  const eq=grp(M.codes.filter(c=>c>='7000'&&c<'8000'&&c!=='7010'),-1), re=r2(-(bal('7010')+cumPL-curPL)), cy=r2(-curPL), te=r2(eq.tot+re+cy), ta=r2(ca.tot+nca.tot);
   let h=`<tr><td colspan="2" style="font-weight:700;padding-top:10px">Assets</td></tr><tr><td style="padding-left:20px;color:var(--tx2);font-weight:700">Current Assets</td></tr>${ca.h}<tr class="tt"><td style="padding-left:20px">Total Current Assets</td><td class="tr">${fpar(ca.tot)}</td></tr><tr><td style="padding-left:20px;color:var(--tx2);font-weight:700">Non-Current Assets</td></tr>${nca.h}<tr class="tg"><td>Total Assets</td><td class="tr">${fpar(ta)}</td></tr>`;
   h+=`<tr><td colspan="2" style="font-weight:700;padding-top:10px">Liabilities</td></tr>${li.h}<tr class="tt"><td>Total Liabilities</td><td class="tr">${fpar(li.tot)}</td></tr><tr><td colspan="2" style="font-weight:700;padding-top:10px">Equity</td></tr>${eq.h}<tr><td style="padding-left:36px">Retained Earnings (opening)</td><td class="tr">${fpar(re)}</td></tr><tr><td style="padding-left:36px">Current Year Profit (before tax)</td><td class="tr">${fpar(cy)}</td></tr><tr class="tt"><td>Total Equity</td><td class="tr">${fpar(te)}</td></tr><tr class="tg"><td>Total Liabilities + Equity</td><td class="tr">${fpar(r2(li.tot+te))}</td></tr>`;
   t.innerHTML=h; const ti=document.querySelector('#rpt-bs .card-title'); if(ti) ti.textContent='Balance Sheet — '+fmtD(T,1);
@@ -5753,20 +5783,20 @@ function saveBB(){
 }
 function postBBToLedger(b){ if(b.settle==='credit'&&ENQ.cust[b.cust]) ENQ.cust[b.cust].rows.push([stkDate(b.date),b.id,'Asset buy-back — '+b.desc+(b.ref?' ('+b.ref+')':''),0,b.tot]); }
 function replayBB(){ DATA.bb.forEach(postBBToLedger); }
-function glBB(){ return (DATA.bb||[]).map(b=>({date:b.date,ref:b.id,src:'Asset Buy-Back',desc:b.cust+' · '+b.asset,lines:[{acc:b.to==='company'?'1500':'1150',dr:b.price,cr:0},{acc:'1200',dr:b.vat||0,cr:0},{acc:b.settle==='credit'?'1100':'1010',dr:0,cr:b.tot}].filter(l=>l.dr||l.cr)})); }
+function glBB(){ return (DATA.bb||[]).map(b=>({date:b.date,ref:b.id,src:'Asset Buy-Back',desc:b.cust+' · '+b.asset,lines:[{acc:b.to==='company'?'5000':'6200',dr:b.price,cr:0},{acc:'6300',dr:b.vat||0,cr:0},{acc:b.settle==='credit'?'6100':'6000',dr:0,cr:b.tot}].filter(l=>l.dr||l.cr)})); }
 function renderBB(){ const t=$('bb-body'); if(!t) return;
   t.innerHTML=DATA.bb.length?DATA.bb.slice().reverse().map(b=>`<tr><td>${escH(b.id)}</td><td>${fmtD(b.date,1)}</td><td>${escH(b.asset)}<div style="font-size:11px;color:var(--txm)">${escH(b.desc)}</div></td><td>${escH(b.cust)}</td><td>${b.to==='company'?'Company Asset':'Warehouse'}</td><td class="tr">${fmtR(b.price)}</td><td class="tr">${fmtR(b.vat||0)}</td><td class="tr"><strong>${fmtR(b.tot)}</strong></td><td>${b.settle==='credit'?'Credited to customer':'Paid from bank'}</td></tr>`).join(''):'<tr><td colspan="9" style="text-align:center;color:var(--txm)">No buy-backs yet.</td></tr>'; }
 
 
 // ══ Convert inventory asset → rental equipment ══
-const GL_RENT='1520';
+const GL_RENT='5020';
 function ensureRentGL(){ if(typeof ACC==='undefined') return; if(!ACC.some(a=>a.code===GL_RENT)){ ACC.push({code:GL_RENT,name:'Rental Equipment',type:'Fixed Asset',vat:'—',bal:0,active:true,due:false}); try{saveCOA();}catch(e){} try{renderCOA();}catch(e){} } }
 const cvCands=()=>DATA.assets.filter(a=>atypeOf(a)==='warehouse'&&a.status==='Active');
 function openCV(){
   if(!canMod('assets')){deny();return;} const l=cvCands();
   $('cv-asset').innerHTML='<option value="">'+(l.length?'Select asset…':'No warehouse assets to convert')+'</option>'+l.map(a=>`<option value="${a.id}">${escH(a.id+' — '+a.desc+(a.ser?' ('+a.ser+')':''))}</option>`).join('');
   const g=coaAccounts().filter(a=>a.sec==='Assets'&&a.active), o=g.map(a=>`<option value="${a.code}">${escH(a.code+' — '+a.name)}</option>`).join('');
-  $('cv-from').innerHTML=o; $('cv-to').innerHTML=o; $('cv-from').value=g.some(a=>a.code==='1150')?'1150':(g[0]||{}).code; $('cv-to').value=g.some(a=>a.code===GL_RENT)?GL_RENT:(g[0]||{}).code;
+  $('cv-from').innerHTML=o; $('cv-to').innerHTML=o; $('cv-from').value=g.some(a=>a.code==='6200')?'6200':(g[0]||{}).code; $('cv-to').value=g.some(a=>a.code===GL_RENT)?GL_RENT:(g[0]||{}).code;
   $('cv-date').value=todayISO(); $('cv-val').value=''; $('cv-res').value=0; $('cv-life').value=60; $('cv-notes').value=''; showErr('cv-err',''); openModal('cv-bg');
 }
 function cvAssetChanged(){ const a=DATA.assets.find(x=>x.id===val('cv-asset')); $('cv-val').value=a?fmtR(a.cost):''; if(a&&a.life) $('cv-life').value=a.life; }
@@ -5780,7 +5810,7 @@ function saveCV(){
   const pe=checkPostingDate(date); if(pe){showErr(E,pe);return;}
   const c={id:nextId(DATA.cnv,'CV-',4),date,asset:a.id,desc:a.desc,value:a.cost,from:val('cv-from'),to:val('cv-to'),notes:val('cv-notes').trim()};
   DATA.cnv.push(c); Object.assign(a,{atype:'company',acqDate:a.date,date,res,life,cv:c.id}); dsave('cnv'); dsave('assets');
-  logEv('Asset converted to rental equipment',c.id+' · '+a.id+' · '+fmtR(c.value)); closeModal('cv-bg'); renderAssets(); renderDep(); renderCV(); try{finRenderAll();glEnqSync();renderEnq('gl');}catch(e){}
+  logEv('Asset converted to rental equipment',c.id+' · '+a.id+' · '+fmtR(c.value)); closeModal('cv-bg'); renderAssets(); renderDep(); renderCV(); try{finRenderAll();renderDash();glEnqSync();renderEnq('gl');}catch(e){}
   toast(a.id+' converted to Rental Equipment ('+fmtR(c.value)+' moved from GL '+c.from+' to '+c.to+').');
 }
 function glCV(){ return (DATA.cnv||[]).map(c=>({date:c.date,ref:c.id,src:'Asset Conversion',desc:c.asset+' to Rental Equipment',lines:[{acc:c.to,dr:c.value,cr:0},{acc:c.from,dr:0,cr:c.value}]})); }
@@ -5802,7 +5832,60 @@ async function poNotifyRequestor(o){
   o.nRel=todayISO(); dsave('po'); logEv('PO released notification',o.id+' → '+e.email+' · '+r.status); toast('Requestor '+e.name+' notified ('+r.status.toLowerCase()+').');
 }
 
-loadCompany();loadCTypes();loadMTypes();loadBud();initOps();initPO();loadNIT();loadSVT();fillSvcTypes();replayBills();initCOA();initCats();seedSuppliers();loadSuppliers();syncParties();replaySinv();fillSupExp('5010');renderSupAdded();renderSupList();renderCustList();fillGlSelects();fillAdjGl();initNavCollapse();renderCTypes();renderCustAdded();resetSI2();renderSalesList();replayBB();renderBB();ensureRentGL();renderCV();loadDepts();fillDeptFilter();ensureWIP();finInit();try{glEnqSync();renderEnq('gl');}catch(e){}
+
+// ══ Inventory items (real, per company) ══
+const STKX_KEY='apex_stkx_v1'; let STKX=[];
+function applyStkX(x){ const k=x.sku+' — '+x.name; if(!STK[k]) STK[k]={cost:x.cost,open:x.open||0,rows:[]}; if(!INV_META) INV_META={};
+  INV_META[x.sku]={grp:x.cat,cat:x.cat,unit:x.unit,sell:x.sell?fmtR(x.sell):'—',order:1000+STKX.indexOf(x)}; SELL[k]=x.sell>0?x.sell:x.cost; }
+function loadStkX(){ try{STKX=JSON.parse(LS.get(STKX_KEY)||'[]');}catch(e){STKX=[];} if(!Array.isArray(STKX)) STKX=[]; STKX.forEach(applyStkX); }
+function fillAiSup(){ const e=$('ai-sup'); if(!e) return; const cur=e.value; e.innerHTML='<option value="">— None —</option>'+Object.keys(ENQ.sup).map(n=>`<option>${escH(n)}</option>`).join(''); e.value=cur; }
+function resetInvItem(){ ['ai-name','ai-sku','ai-cost','ai-sell','ai-open','ai-reo','ai-roq','ai-bin','ai-bar','ai-notes'].forEach(i=>{const e=$(i); if(e) e.value='';}); $('ai-unit').selectedIndex=0; $('ai-vat').selectedIndex=0; showErr('ai-err',''); }
+function saveInvItem(){
+  if(!canMod('inventory')){deny();return;} const E='ai-err', g=i=>val(i).replace(/\s+/g,' ').trim(), name=g('ai-name'), sku=g('ai-sku').toUpperCase().replace(/\s/g,'');
+  const cost=parseFloat(val('ai-cost')), sell=parseFloat(val('ai-sell')||'0'), open=parseFloat(val('ai-open')||'0');
+  if(name.length<2){showErr(E,'Enter the item name.');return;} if(!sku){showErr(E,'Enter the SKU / item code.');return;} if(sku.includes('—')||name.includes('—')){showErr(E,'The name and SKU cannot contain the “—” character.');return;}
+  if(Object.keys(STK).some(k=>k.split(' — ')[0].toUpperCase()===sku)){showErr(E,'The SKU '+sku+' already exists.');return;}
+  const cat=CATS.find(c=>catLabel(c)===val('ai-cat')); if(!cat){showErr(E,'Select the inventory category. Add one under Categories first if none exist.');return;}
+  if(!(cost>=0)){showErr(E,'Enter the cost price (zero or more).');return;} if(!(sell>=0)){showErr(E,'The sell price cannot be negative.');return;} if(!(open>=0)||!Number.isInteger(open)){showErr(E,'Opening stock must be a whole number, zero or more.');return;}
+  const x={sku,name,cat:cat.name,unit:val('ai-unit'),cost,sell,open,vat:val('ai-vat'),sup:val('ai-sup'),reo:parseFloat(val('ai-reo')||'0'),roq:parseFloat(val('ai-roq')||'0'),bin:g('ai-bin'),bar:g('ai-bar'),notes:g('ai-notes')};
+  STKX.push(x); try{LS.set(STKX_KEY,JSON.stringify(STKX));}catch(e){toast('Could not save in this browser.');} applyStkX(x); logEv('Inventory item added',sku+' — '+name);
+  resetInvItem(); refreshStock(); toast('Item '+sku+' saved.');
+}
+// ══ A new (blank) company starts with an empty database ══
+function blankify(){
+  if(!CO_BLANK()) return; const none=n=>`<tr><td colspan="${n}" style="text-align:center;color:var(--txm)">No data yet.</td></tr>`;
+  const zero=e=>{const t=e.textContent.trim(); if(/^[(+−-]?\s*R/.test(t)) e.textContent='R 0.00'; else if(/%/.test(t)) e.textContent='0%'; else if(/^\d/.test(t)) e.textContent='0'; else e.textContent='—';};
+  ['gl-rjnl','gl-jnl','jq-body','cust-rlist','cust-rsales','cust-rreg','cust-rrec','cust-rcpt','cust-aged','cinv-list','ccn-list','sup-rlist','sup-rpur','sup-rreg','sup-rrec','sup-aged','inv-rrec','inv-val','inv-low','sinv-list','sdn-list','bank-accs','bank-recon','bank-txn','rpt-tax'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    (el.tagName==='TBODY'?[el]:[...el.querySelectorAll('tbody')]).forEach(tb=>{ if(tb.querySelector('input,select,textarea')||tb.id==='rt-grid') return; const t=tb.closest('table'); tb.innerHTML=none(t?t.querySelectorAll('thead th').length||4:4); });
+    el.querySelectorAll('.stat-val,.kpi-val,.rr-val').forEach(zero); el.querySelectorAll('.kpi-sub,.stat-sub').forEach(e=>{e.textContent='';});
+  });
+  const SN=new Set(['Woolworths Ltd','Shoprite Holdings','MTN Group','Naspers Ltd','Standard Bank','Bidvest Facilities','Eskom Holdings','Vodacom Business','Massdiscounters','Outsurance']);
+  document.querySelectorAll('select option').forEach(o=>{ if(SN.has(o.textContent.trim())) o.remove(); });
+  document.querySelectorAll('tr').forEach(r=>{ if(r.querySelector('input.rc-al,input.sp-al,input.pm-al')) r.remove(); });
+  document.querySelectorAll('[id$="-tot"],[id$="-un"]').forEach(e=>{ if(/R\s*[1-9]/.test(e.textContent)) e.textContent='R 0.00'; });
+  const now=new Date(), my=now.toLocaleDateString('en-GB',{month:'long',year:'numeric'}), full=now.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  ['page-reports','page-gl','page-customers','page-suppliers','page-inventory','page-paye'].forEach(id=>{ const root=document.getElementById(id); if(!root) return;
+    root.querySelectorAll('.card-title').forEach(t=>{ const w=document.createTreeWalker(t,NodeFilter.SHOW_TEXT); let n; while((n=w.nextNode())) n.nodeValue=n.nodeValue.replace(/\d{1,2}\s*[–-]\s*\d{1,2}\s+March 2025/g,my).replace(/\d{1,2}\s+March 2025/g,full).replace(/March 2025/g,my); }); });
+  document.querySelectorAll('#page-banking .card,#page-banking .g3,#page-banking .g4').forEach(c=>{ if(!c.querySelector('input,select,textarea')) c.querySelectorAll('.stat-val').forEach(zero); });
+}
+
+
+/* One-time migration of saved data from the old chart numbering (1xxx assets … 5xxx expenses) to the new one. */
+const COA_OLD2NEW={"4010":"1000","4020":"1010","5010":"2000","4030":"3000","5020":"4000","5030":"4010","5040":"4020","5050":"4030","5060":"4040","5070":"4050","5080":"4060","5090":"4070","5100":"4080","1500":"5000","1510":"5010","1520":"5020","1010":"6000","1020":"6010","1100":"6100","1150":"6200","1160":"6210","1300":"6220","1200":"6300","3010":"7000","3020":"7010","2010":"9000","2100":"9100","2200":"9200","2300":"9210"};
+function migrateCoaStorage(){
+  try{
+    if(LS.get('apex_coaver')==='2') return;
+    const F=new Set(['gl','cos','rev','sales','invgl','acc','from','to','code','glAcc','expAcc','revAcc','cosAcc']);
+    const walk=(o,k)=>{ if(Array.isArray(o)) return o.map(x=>walk(x,k)); if(o&&typeof o==='object'){const r={}; for(const q in o) r[q]=walk(o[q],q); return r;} if(typeof o==='string'&&F.has(k)&&COA_OLD2NEW[o]) return COA_OLD2NEW[o]; return o; };
+    const keys=Object.values(DKEY).concat(['apex_coa_v1','apex_ctypes_v1','apex_mtypes_v1','apex_invcat_v1','apex_nit_v1','apex_stkx_v1','apex_depts_v1']);
+    keys.forEach(k=>{ const raw=LS.get(k); if(!raw) return; try{ LS.set(k,JSON.stringify(walk(JSON.parse(raw),''))); }catch(e){} });
+    const b=LS.get('apex_budget_v1'); if(b){ try{ const o=JSON.parse(b),n={}; for(const y in o){ n[y]={}; for(const c in o[y]) n[y][COA_OLD2NEW[c]||c]=o[y][c]; } LS.set('apex_budget_v1',JSON.stringify(n)); }catch(e){} }
+    LS.set('apex_coaver','2');
+  }catch(e){}
+}
+migrateCoaStorage();
+loadCompany();loadStkX();loadCTypes();loadMTypes();loadBud();initOps();initPO();loadNIT();loadSVT();fillSvcTypes();replayBills();initCOA();initCats();seedSuppliers();loadSuppliers();syncParties();replaySinv();fillSupExp('2000');renderSupAdded();renderSupList();renderCustList();fillGlSelects();fillAdjGl();initNavCollapse();renderCTypes();renderCustAdded();resetSI2();renderSalesList();blankify();replayBB();renderBB();ensureRentGL();renderCV();loadDepts();fillDeptFilter();ensureWIP();finInit();renderDash();try{glEnqSync();renderEnq('gl');}catch(e){}
 </script>
 </body>
 </html>
