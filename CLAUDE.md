@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-The migration/build workflow lives in @.claude/rules/setup.md — read it before starting any conversion work.
+The migration/build workflow lives in @.claude/rules/setup.md — read it before starting any conversion work. Current batch status and where to resume lives in @PROGRESS.md — read it at the start of every batch (each batch begins a fresh context window).
 
 ## What this is
 
@@ -35,11 +35,9 @@ apps/web/      @numera/web     — Angular 22 (zoneless, standalone, signals)
 - Auth in `core/auth.store.ts` (signals user/access/companies/company/fyName); guards in `core/guards.ts` (`canSecGuard` reads `route.data {mod, sec}`); `deny()` toast + `/dashboard` redirect. Route gating mirrors legacy `canSec`.
 - Legacy parity: error strings, tab names (`SECN`), sidebar labels/order, role chips are ported verbatim — when a UI string differs from legacy, that's a bug unless deliberate.
 
-### Batch status (batch 1 done, on branch `batch-1/auth-gl-foundation`)
+### Batch status
 
-Done: auth (scrypt, sessions, lockout, must_change), roles+overrides, multi-company, settings tabs (company/years/companies/users/roles/email/log), COA CRUD, GL summary. Deferred by design: FY Income/Expenses/Net columns (needs journal data — batch 7), settings tabs ctypes/sitypes/svctypes/employees (render as disabled pills), sidebar modules not yet converted render as dimmed entries.
-Known deviation: blank companies are seeded with the full standard chart at zero balances (legacy blank = empty COA) so posting is possible out of the box.
-Seeded demo users (`admin` password changed per deployment; others keep their seed passwords) are demo-grade: must_change=true forced on first sign-in — do not use them as real credentials.
+Done: batch 1 (auth, roles, multi-company, settings, COA, GL foundation) on branch `batch-1/auth-gl-foundation`. Next: batch 2 (customers/suppliers/inventory + AR/AP + GL transactions/enquiries). Full table, deviations, demo credentials and resume pointers: @PROGRESS.md.
 
 ## Legacy reference (frozen)
 
