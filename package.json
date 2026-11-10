@@ -1,0 +1,13 @@
+{
+  "name": "numera",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @numera/api",
+    "dev:web": "npm run start -w @numera/web",
+    "migrate": "npm run migrate -w @numera/api",
+    "seed": "npm run seed -w @numera/api"
+  }
+}
