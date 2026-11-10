@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /*
-  Apex Accounting — mail relay
+  Numera — mail relay
   ----------------------------
-  Browsers cannot open SMTP connections, so Apex Accounting posts each email to this small
+  Browsers cannot open SMTP connections, so Numera posts each email to this small
   service, which delivers it with your SMTP settings (Settings → Email (SMTP) → "Send through my mail relay").
 
   Setup
     1. npm install nodemailer
-    2. RELAY_TOKEN="<random string, 16+ chars>" node apex-mail-relay.js
-    3. In Apex Accounting enter  Relay URL = http://localhost:8787/  and the same token.
+    2. RELAY_TOKEN="<random string, 16+ chars>" node numera-mail-relay.js
+    3. In Numera enter  Relay URL = http://localhost:8787/  and the same token.
        For anything beyond your own machine, put this behind HTTPS (e.g. a reverse proxy).
 
   Environment variables
@@ -129,4 +129,4 @@ const server = http.createServer((req, res) => {
     }
   });
 });
-server.listen(PORT, HOST, () => console.log('Apex mail relay listening on http://' + HOST + ':' + PORT));
+server.listen(PORT, HOST, () => console.log('Numera mail relay listening on http://' + HOST + ':' + PORT));
