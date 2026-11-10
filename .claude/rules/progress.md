@@ -1,4 +1,4 @@
-# Numera conversion progress
+﻿# Numera conversion progress
 
 State of the setup.md migration. Read this first when resuming work — each batch starts a fresh context window.
 Plan of record: `C:\Users\James\.claude\plans\start-converting-the-app-robust-leaf.md`.
@@ -15,8 +15,8 @@ Plan of record: `C:\Users\James\.claude\plans\start-converting-the-app-robust-le
 
 | Batch | Scope | Status |
 |---|---|---|
-| 1 | auth + roles + multi-company + settings + COA + GL foundation | ✅ done, commit `5d6978e` on `batch-1/auth-gl-foundation` (2026-11-10) |
-| 2 | customers/suppliers/inventory + AR/AP + GL transactions & enquiries (glJournalBase → posting-time journal inserts) | next |
+| 1 | auth + roles + multi-company + settings + COA + GL foundation | âœ… done, commit `5d6978e` on `batch-1/auth-gl-foundation` (2026-11-10) |
+| 2 | customers/suppliers/inventory + AR/AP + GL transactions & enquiries (glJournalBase â†’ posting-time journal inserts) | next |
 | 3 | contracts + billing (+Employees stays 4) | |
 | 4 | service/work orders (+ employees, service types) | |
 | 5 | procurement/buybacks/conversions (glBB/glCV) | |
@@ -41,7 +41,7 @@ Plan of record: `C:\Users\James\.claude\plans\start-converting-the-app-robust-le
 
 ### Demo credentials (demo-grade — change before real use)
 
-admin/N@mera2026 · nomsa/Numera@2026nx · thabo/Mokoena@2026 · pieter/DeWet@2026. All except admin had `must_change` cleared during validation.
+admin/N@mera2026 Â· nomsa/Numera@2026nx Â· thabo/Mokoena@2026 Â· pieter/DeWet@2026. All except admin had `must_change` cleared during validation.
 
 ## Batch 2 entry pointers
 
