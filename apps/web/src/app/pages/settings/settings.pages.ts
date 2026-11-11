@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { ApiService, ApiError, ToastService } from '../../core/api';
 import { AuthStore, CompanyInfo } from '../../core/auth.store';
+import { fmtR } from '../../core/fmt';
 import { MODSEC, SECN, ROLES, ACCESS, MODS, Role } from '@numera/shared';
 
 // Settings parent: two-level tab nav mirroring SECN (2537). Deferred tabs show as disabled pills.
@@ -35,7 +36,7 @@ export class SettingsComponent {
     { key: 'email', sec: 'email', path: '/settings/email', ready: true },
     { key: 'log', sec: 'log', path: '/settings/log', ready: true },
     { key: 'ctypes', sec: 'ctypes', path: '', ready: false },
-    { key: 'sitypes', sec: 'sitypes', path: '', ready: false },
+    { key: 'sitypes', sec: 'sitypes', path: '/settings/sitypes', ready: true },
     { key: 'svctypes', sec: 'svctypes', path: '', ready: false },
     { key: 'employees', sec: 'employees', path: '', ready: false },
   ];
@@ -720,5 +721,65 @@ export class EmailComponent {
     this.testResult.set('');
     const r = await this.api.post<{ status: string; detail: string }>('/settings/email/test');
     this.testResult.set(r.status === 'ok' ? 'Relay check passed: ' + r.detail : 'Relay check failed: ' + r.detail);
+  }
+}
+
+
+// ── Sales Item Types (NIT — Settings tab, legacy 5390-5412) ──
+// ── Sales Item Types (NIT — legacy 5390–5412). No edit endpoint; delete = deactivate. ──
+@Component({
+  selector: 'app-settings-sitypes', imports: [FormsModule],
+  template: `
+  <div class="card" style="margin-bottom:16px"><div class="card-title">Add Non-Inventory Item Type</div>
+    <div class="fr3">
+      <div class="fg"><label>Name *</label><input [(ngModel)]="f.name" maxlength="50" placeholder="e.g. Installation Labour"></div>
+      <div class="fg"><label>Default price (excl. VAT)</label><input type="number" [(ngModel)]="f.price" min="0" step="0.01" placeholder="0.00"></div>
+      <div class="fg"><label>VAT</label><select [(ngModel)]="f.vat"><option value="15">Standard 15%</option><option value="0">Zero-rated / exempt 0%</option></select></div></div>
+    <div class="fr"><div class="fg"><label>Sales GL Account *</label><select [(ngModel)]="f.gl">
+      <option value="">— Select —</option>
+      @for (a of accs(); track a.code) { <option [value]="a.code">{{a.code}} — {{a.name}}</option> }</select></div></div>
+    <div class="form-err" [style.display]="err() ? 'block' : 'none'">{{err()}}</div>
+    <div class="btn-grp"><button class="btn btn-p" (click)="save()" [disabled]="busy()"><i class="ti ti-plus"></i> Add Item Type</button>
+      <button class="btn btn-s" (click)="reset()">Cancel</button></div></div>
+  <div class="card"><div class="card-title">Non-Inventory Item Types</div>
+    <table><thead><tr><th>Code</th><th>Name</th><th class="tr">Default price</th><th>VAT</th><th>GL account</th><th>Status</th><th style="width:130px">Action</th></tr></thead>
+    <tbody>
+      @for (t of list(); track t.code) {
+        <tr><td>{{t.code}}</td><td><strong>{{t.name}}</strong></td><td class="tr">{{fmtR(t.price)}}</td><td>{{t.vat === '15' ? '15%' : '0%'}}</td><td>{{t.gl}}</td>
+          <td><span class="chip" [class.c-ok]="t.active" [class.c-nt]="!t.active">{{t.active ? 'Active' : 'Inactive'}}</span></td>
+          <td>@if (t.active) { <button class="btn btn-s btn-sm" (click)="deactivate(t)">Deactivate</button> }</td></tr>
+      } @empty { <tr><td colspan="7" style="color:var(--txm)">No item types yet.</td></tr> }
+    </tbody></table></div>`,
+})
+export class SitypesComponent {
+  fmtR = fmtR;
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  private cdr = inject(ChangeDetectorRef);
+  list = signal<{ code: string; name: string; price: number; gl: string; vat: string; active: boolean }[]>([]);
+  accs = signal<{ code: string; name: string }[]>([]);
+  busy = signal(false); err = signal('');
+  f = { name: '', price: 0, vat: '15', gl: '' };
+
+  constructor() { void this.reload(); }
+  async reload() {
+    const [l, a] = await Promise.all([
+      this.api.get<{ code: string; name: string; price: number; gl: string; vat: string; active: boolean }[]>('/sitypes'),
+      this.api.get<{ code: string; name: string }[]>('/gl/accounts'),
+    ]);
+    this.list.set(l); this.accs.set(a); this.cdr.detectChanges();
+  }
+  reset() { this.f = { name: '', price: 0, vat: '15', gl: '' }; this.err.set(''); }
+  async save() {
+    this.err.set(''); this.busy.set(true);
+    try {
+      const r = await this.api.post<{ code: string }>('/sitypes', { name: this.f.name.trim(), price: Number(this.f.price), gl: this.f.gl, vat: this.f.vat });
+      this.toast.show('Item type ' + r.code + ' added.'); this.reset(); await this.reload();
+    } catch (e) { this.err.set((e as ApiError).message); }
+    finally { this.busy.set(false); this.cdr.detectChanges(); }
+  }
+  async deactivate(t: { code: string }) {
+    try { await this.api.del('/sitypes/' + t.code); await this.reload(); this.toast.show('Item type deactivated.'); }
+    catch (e) { this.toast.show((e as ApiError).message); }
   }
 }

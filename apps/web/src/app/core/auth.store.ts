@@ -21,6 +21,8 @@ export class AuthStore {
   companies = signal<CompanyInfo[]>([]);
   company = signal<CompanyInfo | null>(null);
   fyName = signal('');   // legacy topbar fy-label (updateFyLabel 2790)
+  // edit handoff between list/add components (customers + suppliers)
+  custEdit = signal<any>(null);
 
   canMod = computed(() => (m: string) => canMod(this.authU(), m));
   canSec = computed(() => (m: string, sec: string) => canSec(this.authU(), m, sec));

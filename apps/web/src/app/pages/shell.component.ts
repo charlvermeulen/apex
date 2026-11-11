@@ -53,19 +53,15 @@ import { FormsModule } from '@angular/forms';
           <div class="nav-section">
             <div class="nav-label">{{sec.label}}</div>
             @for (m of sec.items; track m[0]) {
-              @if (m[0] === 'gl') {
-                <!-- batch 1: GL Maintenance implemented; other sections pending -->
-                <div class="nav-sub" style="cursor:default;border-left:2px solid var(--ac);background:var(--bg)" title="General Ledger — Maintenance available, Transactions/Enquiries/Reports arrive in batch 2">
-                  <i class="ti ti-books" style="width:18px;display:inline-block"></i> {{m[1]}}
-                </div>
-                <a routerLink="/gl/coa" style="text-decoration:none">
-                  <div class="nav-sub" style="padding-left:34px" [class.nav-parent]="true">Chart of Accounts</div></a>
-              } @else if (m[0] === 'settings') {
-                <a routerLink="/settings/company" style="text-decoration:none">
-                  <div class="nav-sub"><i class="ti ti-settings" style="width:18px;display:inline-block"></i> {{m[1]}}</div></a>
+              @if (linkFor(m[0])) {
+                <a [routerLink]="linkFor(m[0])" style="text-decoration:none">
+                  <div class="nav-sub" [class.nav-parent]="m[0] === 'gl'"><i class="ti" [class]="iconFor(m[0])" style="width:18px;display:inline-block"></i> {{m[1]}}</div></a>
               } @else if (m[0] === 'dashboard') {
                 <a routerLink="/dashboard" style="text-decoration:none">
                   <div class="nav-sub" title="Batch-1 stub — KPIs arrive with the financials batches"><i class="ti ti-gauge" style="width:18px;display:inline-block"></i> {{m[1]}}</div></a>
+              } @else if (m[0] === 'settings') {
+                <a routerLink="/settings/company" style="text-decoration:none">
+                  <div class="nav-sub"><i class="ti ti-settings" style="width:18px;display:inline-block"></i> {{m[1]}}</div></a>
               } @else {
                 <div class="nav-item" style="cursor:default;opacity:.55" [title]="m[1] + ' arrives in a later batch'">
                   <i class="ti ti-circle-dashed"></i> {{m[1]}}
@@ -99,6 +95,22 @@ export class ShellComponent {
     };
     return Object.entries(sec).map(([label, items]) => ({ label, items }));
   };
+
+  // converted modules with the user's access route to their landing tab; others stay dimmed
+  private CONVERTED: Record<string, string> = {
+    customers: '/customers/list', suppliers: '/suppliers/list', gl: '/gl/coa',
+    inventory: '/inventory/items', procurement: '/procurement/pi',
+  };
+  linkFor = (m: string) => {
+    const conv = this.CONVERTED[m];
+    return conv && this.auth.canMod()(m) ? conv : '';
+  };
+  iconFor = (m: string) => ({
+    customers: 'ti-users', suppliers: 'ti-truck', gl: 'ti-books', inventory: 'ti-box',
+    procurement: 'ti-shopping-cart', assets: 'ti-circle-dashed', service: 'ti-circle-dashed',
+    contracts: 'ti-circle-dashed', cbilling: 'ti-circle-dashed', vat: 'ti-circle-dashed',
+    paye: 'ti-circle-dashed', taxcal: 'ti-circle-dashed', reports: 'ti-circle-dashed',
+  })[m] ?? '';
 
   fyLabel = () => this.auth.fyName();
 

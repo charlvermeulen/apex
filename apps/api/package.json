@@ -8,6 +8,7 @@
     "start": "tsx --env-file=.env src/index.ts",
     "migrate": "node --env-file=.env scripts/migrate.mjs",
     "seed": "tsx --env-file=.env scripts/seed.mjs",
+    "reset-demo": "node --env-file=.env scripts/reset-demo.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

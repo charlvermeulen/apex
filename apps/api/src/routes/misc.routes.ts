@@ -26,8 +26,8 @@ misc.get('/gl/summary', async (req: AuthedReq, res, next) => {
     const rows = (await q(`
       select a.code, a.name, a.type, a.vat_rate,
              a.opening_balance
-               + coalesce((select sum(l.debit - l.credit) from journal_lines l
-                           where l.company_id = a.company_id and l.account_code = a.code), 0) as balance
+               + coalesce((select sum(l.debit - l.credit) from journal_lines l join journals j on j.id = l.journal_id
+                           where l.company_id = a.company_id and l.account_code = a.code and j.status = 'Posted'), 0) as balance
         from accounts a where a.company_id = $1 and a.active order by a.code`, [req.companyId])).rows;
     res.json(rows);
   } catch (e) { next(e); }

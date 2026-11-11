@@ -9,6 +9,11 @@ import { fys } from './routes/fys.routes.js';
 import { accounts } from './routes/accounts.routes.js';
 import { settings } from './routes/settings.routes.js';
 import { misc } from './routes/misc.routes.js';
+import { parties } from './routes/parties.routes.js';
+import { sales } from './routes/sales.routes.js';
+import { purchases } from './routes/purchases.routes.js';
+import { inventory } from './routes/inventory.routes.js';
+import { gl } from './routes/gl.routes.js';
 import { ApiError, AuthedReq } from './middleware.js';
 
 const app = express();
@@ -23,6 +28,11 @@ app.use('/api/fys', fys);
 app.use('/api/accounts', accounts);
 app.use('/api/settings', settings);
 app.use('/api', misc);
+app.use('/api', parties);
+app.use('/api', sales);
+app.use('/api', purchases);
+app.use('/api', inventory);
+app.use('/api/gl', gl);
 
 // errors: {error} shape, 500 never leaks SQL
 app.use((err: unknown, _req: AuthedReq, res: express.Response, _next: express.NextFunction) => {
