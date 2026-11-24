@@ -24,9 +24,10 @@ apps/web/      @numera/web     — Angular 22 (zoneless, standalone, signals)
 
 - Errors are `{error: string}` with status 400/401/403/404/409; 500 never leaks SQL. `requireCan(mod, sec)` is the guard (admin bypasses); every mutation logs via `logEv`.
 - pg: DATE columns parse to plain `YYYY-MM-DD` strings (global type parser in `db.ts`, never JS Date); NUMERIC arrives as string — `Number()` at the edges.
+- pg gotchas: unquoted SQL aliases are lowercased (`as postedAmt` → `postedamt`) — quote camelCase aliases (`as "postedAmt"`) or the field reads `undefined` (NaN downstream); `nullif($n,'')` on a date column throws 42804 — write `nullif($n::text,'')::date`.
 - `financial_years`: `end_date`, aliased as `"end"` in queries; `withHistory()` normalizes dates + parses the jsonb history. Versioned migration files only — never reorder applied ones.
 - ACL is `accOf(u)`: overrides replace the whole ACCESS map (wholesale, not merged); no access rows in `user_company_access` = all companies (legacy `userCos` semantics). Gotcha: a truthy empty-object override reads as *no* access — both `/auth/login` and `/auth/me` must return the resolved `access: effAccess(u)` map, and anything that sets a user in the web store must populate `auth.access` (SPA login otherwise disables every route/sidebar link until a full reload).
-- Router mounts vary (`app.use('/api', …)` vs `app.use('/api/gl', …)`): gl, settings and auth are prefixed; assets, contracts and billing are flat under `/api` (`/api/ctypes`, `/api/contracts`, `/api/escalations`, `/api/assets`, `/api/billing/periods`, …). Check `index.ts` before fetching an endpoint.
+- Router mounts vary (`app.use('/api', …)` vs `app.use('/api/gl', …)`): gl, settings and auth are prefixed; assets, contracts, service and billing are flat under `/api` (`/api/ctypes`, `/api/contracts`, `/api/escalations`, `/api/assets`, `/api/calls`, `/api/call-types`, `/api/billing/periods`, …). Check `index.ts` before fetching an endpoint — and grep existing routers for a path before reusing it (contracts already owns `/staff`; service staff for selects is `/techs`).
 - Email settings: SMTP password AES-256-GCM at rest, never returned — `has_password` boolean only.
 
 ### Angular conventions (zoneless!)
@@ -38,7 +39,7 @@ apps/web/      @numera/web     — Angular 22 (zoneless, standalone, signals)
 
 ### Batch status
 
-Done: batch 1 (auth, roles, multi-company, settings, COA, GL foundation) on branch `batch-1/auth-gl-foundation`; batch 2 (customers/suppliers/inventory + AR/AP + GL transactions/enquiries + procurement PI/DN) on branch `batch-2/masterdata-ar-ap-gl`; batch 3 (contracts + billing + minimal assets + employees) on branch `batch-3/contracts-billing`. Next: batch 4 (service/work orders + employees depreciation/service). Full table, deviations, demo credentials and resume pointers: @.claude/rules/progress.md.
+Done: batch 1 (auth, roles, multi-company, settings, COA, GL foundation) on branch `batch-1/auth-gl-foundation`; batch 2 (customers/suppliers/inventory + AR/AP + GL transactions/enquiries + procurement PI/DN) on branch `batch-2/masterdata-ar-ap-gl`; batch 3 (contracts + billing + minimal assets + employees) on branch `batch-3/contracts-billing`; batch 4 (service calls/requests/work orders/WIP/SLA + call types + asset service history + depreciation + inventory part requests/returns) on branch `batch-4/service-workorders`. Next: batch 5 (procurement buybacks/conversions glBB/glCV). Full table, deviations, demo credentials and resume pointers: @.claude/rules/progress.md.
 
 ## Legacy reference (frozen)
 

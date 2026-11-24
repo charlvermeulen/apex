@@ -141,11 +141,12 @@ const empCan = requireCan('settings', 'employees');
 
 settings.get('/employees', empCan, async (req: AuthedReq, res, next) => {
   try {
-    // empUse (4865): contracts + service calls (tech use lands with batch 4)
+    // empUse (4865): contracts + service calls
     const rows = (await q(
       `select e.code, e.name, coalesce(e.email,'') as email, coalesce(e.phone,'') as phone,
               e.is_mgr as mgr, e.is_sales as sales, e.is_tech as tech, e.active,
-              (select count(*)::int from contracts c where c.company_id = e.company_id and (c.mgr_code = e.code or c.sales_code = e.code)) as use
+              (select count(*)::int from contracts c where c.company_id = e.company_id and (c.mgr_code = e.code or c.sales_code = e.code))
+              + (select count(*)::int from service_calls s where s.company_id = e.company_id and s.tech_code = e.code) as use
          from employees e where e.company_id = $1 order by e.name`, [req.companyId])).rows;
     res.json(rows);
   } catch (e) { next(e); }
@@ -186,7 +187,11 @@ settings.patch('/employees/:code', empCan, async (req: AuthedReq, res, next) => 
       if (!o.mgr && !o.sales && !o.tech) throw new ApiError(400, 'Tick at least one role.');
       const dup = (await c.query(`select 1 from employees where company_id = $1 and lower(btrim(name)) = lower($2) and code <> $3`, [req.companyId, name, base.code])).rows.length;
       if (dup) throw new ApiError(400, `An employee called "${name}" already exists.`);
-      // TODO(batch4): service-call technician guard — legacy 4891 first half
+      // legacy 4891 first half: a tech assigned to calls keeps the role
+      if (base.is_tech && !o.tech) {
+        const used = (await c.query(`select 1 as x from service_calls where company_id = $1 and tech_code = $2 limit 1`, [req.companyId, base.code])).rows.length;
+        if (used) throw new ApiError(400, `${base.name} is assigned to service calls, so the Technician role cannot be removed.`);
+      }
       const lost = (await c.query(
         `select code, mgr_code, sales_code from contracts where company_id = $1 and (mgr_code = $2 and not $3::bool) or (sales_code = $2 and not $4::bool) limit 1`,
         [req.companyId, base.code, o.mgr, o.sales])).rows[0];
@@ -219,13 +224,16 @@ settings.delete('/employees/:code', empCan, async (req: AuthedReq, res, next) =>
     await withTx(async (c) => {
       const base = (await c.query(
         `select e.code, e.name,
-                (select count(*)::int from contracts c where c.company_id = e.company_id and (c.mgr_code = e.code or c.sales_code = e.code)) as use
+                (select count(*)::int from contracts c where c.company_id = e.company_id and (c.mgr_code = e.code or c.sales_code = e.code)) as useC,
+                (select count(*)::int from service_calls s where s.company_id = e.company_id and s.tech_code = e.code) as useS
            from employees e where e.company_id = $1 and e.code = $2`, [req.companyId, req.params.code])).rows[0];
       if (!base) throw new ApiError(404, 'Employee not found.');
-      if (base.use) throw new ApiError(409, `${base.name} is used on a contract and cannot be deleted. Deactivate instead.`);
+      if (base.useC) throw new ApiError(409, `${base.name} is used on a contract and cannot be deleted. Deactivate instead.`);
+      if (base.useS) throw new ApiError(409, `${base.name} is used on a service call and cannot be deleted. Deactivate instead.`);
       await c.query('delete from employees where company_id = $1 and code = $2', [req.companyId, base.code]);
       await logEv(req.user!.id, req.user!.username, 'Employee deleted', base.name, req.companyId);
       res.json({ ok: true });
     });
   } catch (e) { next(e); }
 });
+

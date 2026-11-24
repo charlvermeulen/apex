@@ -1,7 +1,7 @@
 import { Component, ChangeDetectorRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService, ApiError, ToastService } from '../../core/api';
-import { fmtR, stkDate, todayIso } from '../../core/fmt';
+import { fmtR, fmtD, stkDate, todayIso } from '../../core/fmt';
 
 interface Cat { code: string; name: string; gl: string; cos: string; sales: string; active: boolean; items: number; }
 interface Item { sku: string; name: string; cat: string; catName: string; unit: string; cost: number; sell: number; open: number; reo: number; roq: number; bin: string; bar: string; notes: string; vat: string; sup: string | null; supName: string; moves: number; }
@@ -298,4 +298,154 @@ export class InvValComponent {
   });
   st = () => { const l = this.items(); return { n: l.length, v: l.reduce((s, i) => s + qty(i) * i.cost, 0) }; };
   pct = (v: number) => { const t = this.st().v; return t ? Math.round(v / t * 100) + '%' : '0%'; };
+}
+
+// ── Part Requests (legacy pq 5148–5177) — inventory ▸ transactions ──
+interface Preq { code: string; date: string; sku: string; itemName: string; qty: number; by: string; byName: string; wo: string; notes: string; status: string; issued: string | null; cost: number | null }
+
+@Component({
+  selector: 'app-inv-preq',
+  imports: [FormsModule],
+  template: `
+  <div class="g3" style="grid-template-columns:repeat(3,1fr)">
+    <div class="card"><div class="stat-lbl">Awaiting issue</div><div class="stat-val">{{stats().req}}</div></div>
+    <div class="card"><div class="stat-lbl">Issued</div><div class="stat-val">{{stats().iss}}</div></div>
+    <div class="card"><div class="stat-lbl">Cancelled</div><div class="stat-val">{{stats().can}}</div></div></div>
+  <div class="card"><div class="card-title">Part Requests <button class="btn btn-p btn-sm" (click)="open()">New Part Request</button></div>
+    <table><thead><tr><th>Request</th><th>Item</th><th class="tr">Qty</th><th>Requested by</th><th>Work order</th><th>Date</th><th>Status</th><th style="width:170px"></th></tr></thead><tbody>
+      @for (r of reqs(); track r.code) {
+        <tr><td><strong>{{r.code}}</strong></td><td>{{r.sku}} — {{r.itemName}}</td><td class="tr">{{r.qty}}</td><td>{{r.byName || '—'}}</td><td>{{r.wo || '—'}}</td>
+          <td>{{fmtD(r.date,1)}}</td>
+          <td><span class="chip {{r.status === 'Requested' ? 'c-wn' : r.status === 'Issued' ? 'c-ok' : 'c-nt'}}">{{r.status}}</span></td>
+          <td>@if (r.status === 'Requested') { <button class="btn btn-p btn-sm" (click)="issue(r)">Issue</button> <button class="btn btn-s btn-sm" (click)="cancel(r)">Cancel</button> }</td></tr>
+      } @empty { <tr><td colspan="8" style="color:var(--txm)">No part requests yet.</td></tr> }
+    </tbody></table></div>
+  @if (isOpen()) {
+    <div class="modal-bg" style="display:block" (click)="close($event)">
+      <div class="modal" style="max-width:520px" (click)="$event.stopPropagation()">
+        <div class="rm-hd"><strong>New Part Request</strong><button class="btn btn-s btn-sm" (click)="close()">✕</button></div>
+        <div class="fr"><div class="fg"><label>Item *</label><select [(ngModel)]="f.sku" (ngModelChange)="avail()"><option value="">Select item…</option>
+            @for (i of items(); track i.sku) { <option [value]="i.sku">{{i.sku}} — {{i.name}}</option> }</select></div>
+          <div class="fg"><label>Available</label><input [value]="f.av" disabled></div></div>
+        <div class="fr3">
+          <div class="fg"><label>Quantity *</label><input type="number" min="0" step="1" [(ngModel)]="f.qty"></div>
+          <div class="fg"><label>Date *</label><input type="date" [(ngModel)]="f.date"></div>
+          <div class="fg"><label>Requested by</label><select [(ngModel)]="f.by"><option value="">— None —</option>
+            @for (e of staff(); track e.code) { @if (e.active) { <option [value]="e.code">{{e.name}}</option> } }</select></div></div>
+        <div class="fr"><div class="fg"><label>Work order (optional)</label><select [(ngModel)]="f.wo"><option value="">— None —</option>
+            @for (w of openWos(); track w.code) { <option [value]="w.code">{{w.code}}</option> }</select></div>
+          <div class="fg" style="grid-column:span 2"><label>Notes</label><input [(ngModel)]="f.notes" maxlength="120"></div></div>
+        <div class="form-err" [style.display]="err() ? 'block' : 'none'">{{err()}}</div>
+        <div class="btn-grp"><button class="btn btn-p" (click)="save()">Save Request</button> <button class="btn btn-s" (click)="close()">Cancel</button></div>
+      </div></div>
+  }`,
+})
+export class InvPreqComponent {
+  fmtD = fmtD; fmtR = fmtR; cdr = inject(ChangeDetectorRef);
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  reqs = signal<Preq[]>([]); items = signal<{ sku: string; name: string; cost: number }[]>([]); staff = signal<{ code: string; name: string; active: boolean }[]>([]); openWosList = signal<{ code: string; status: string }[]>([]);
+  isOpen = signal(false); err = signal('');
+  f = { sku: '', qty: 1, date: todayIso(), by: '', wo: '', notes: '', av: '' };
+
+  constructor() { void this.reload(); }
+  stats = () => ({ req: this.reqs().filter((r) => r.status === 'Requested').length, iss: this.reqs().filter((r) => r.status === 'Issued').length, can: this.reqs().filter((r) => r.status === 'Cancelled').length });
+  openWos = () => this.openWosList();
+  open() { this.f = { sku: '', qty: 1, date: todayIso(), by: '', wo: '', notes: '', av: '' }; this.isOpen.set(true); this.err.set(''); this.cdr.detectChanges(); }
+  close(e?: MouseEvent) { if (!e || (e.target as HTMLElement).classList.contains('modal-bg')) this.isOpen.set(false); this.cdr.detectChanges(); }
+  async reload() {
+    const [reqs, items, staff, wos] = await Promise.all([
+      this.api.get<Preq[]>('/parts/requests'), this.api.get<{ sku: string; name: string; cost: number }[]>('/inv/items'),
+      this.api.get<{ code: string; name: string; active: boolean }[]>('/techs'),
+      this.api.get<{ code: string; status: string }[]>('/workorders').catch(() => [] as { code: string; status: string }[]),
+    ]);
+    this.reqs.set(reqs); this.items.set(items); this.staff.set(staff);
+    this.openWosList.set(wos.filter((w) => w.status !== 'Completed' && w.status !== 'Cancelled'));
+    this.cdr.detectChanges();
+  }
+  avail() {
+    // pqAvailQty 5149 — real check happens server-side at issue
+    void this.api.get<{ out: number }>('/parts/avail?sku=' + encodeURIComponent(this.f.sku)).then((r) => { this.f.av = String(r.out); this.cdr.detectChanges(); }).catch(() => {});
+  }
+  async issue(r: Preq) {
+    try { await this.api.post('/parts/requests/' + r.code + '/issue'); this.toast.show(r.code + ' issued' + (r.wo ? ' to Work in Progress.' : '.')); await this.reload(); }
+    catch (e) { this.toast.show((e as ApiError).message); }
+  }
+  async cancel(r: Preq) {
+    if (!confirm('Cancel ' + r.code + '?')) return;
+    try { await this.api.post('/parts/requests/' + r.code + '/cancel'); await this.reload(); }
+    catch (e) { this.toast.show((e as ApiError).message); }
+  }
+  async save() {
+    this.err.set('');
+    try {
+      const r = await this.api.post<{ code: string }>('/parts/requests', { sku: this.f.sku, qty: this.f.qty, by: this.f.by, wo: this.f.wo, date: this.f.date, notes: this.f.notes });
+      this.toast.show(r.code + ' saved.');
+      this.isOpen.set(false);
+      await this.reload();
+    } catch (e) { this.err.set((e as ApiError).message); this.cdr.detectChanges(); }
+  }
+}
+
+// ── Part Returns (legacy pr 5178–5192) ──
+interface Pret { code: string; req: string; sku: string; qty: number; cond: string; reason: string; date: string }
+
+@Component({
+  selector: 'app-inv-pret',
+  imports: [FormsModule],
+  template: `
+  <div class="card"><div class="card-title">Part Returns <button class="btn btn-p btn-sm" (click)="open()" [disabled]="!issued().length">New Part Return</button></div>
+    <table><thead><tr><th>Return</th><th>Request</th><th>Item</th><th class="tr">Qty</th><th>Condition</th><th>Reason</th><th>Date</th></tr></thead><tbody>
+      @for (r of pretRows(); track r.code) {
+        <tr><td><strong>{{r.code}}</strong></td><td>{{r.req}}</td><td>{{r.sku}}</td><td class="tr">{{r.qty}}</td><td>{{r.cond}}</td><td>{{r.reason}}</td><td>{{fmtD(r.date,1)}}</td></tr>
+      } @empty { <tr><td colspan="7" style="color:var(--txm)">No part returns yet.</td></tr> }
+    </tbody></table></div>
+  @if (isOpen()) {
+    <div class="modal-bg" style="display:block" (click)="close($event)">
+      <div class="modal" style="max-width:560px" (click)="$event.stopPropagation()">
+        <div class="rm-hd"><strong>New Part Return</strong><button class="btn btn-s btn-sm" (click)="close()">✕</button></div>
+        <div class="fr"><div class="fg"><label>Issued request *</label>
+            <select [(ngModel)]="f.req" (ngModelChange)="avail()"><option value="">@if (issued().length) { — Select issued request — } @else { No issued requests with parts to return }</option>
+              @for (i of issued(); track i.code) { <option [value]="i.code">{{i.code}} · {{i.sku}} · {{i.out}} out</option> }</select></div>
+          <div class="fg"><label>Out</label><input [value]="f.av" disabled></div></div>
+        <div class="fr3"><div class="fg"><label>Quantity returned *</label><input type="number" min="0" step="any" [(ngModel)]="f.qty"></div>
+          <div class="fg"><label>Condition *</label><select [(ngModel)]="f.cond"><option>Good — back to stock</option><option>Damaged — not restocked</option></select></div>
+          <div class="fg"><label>Date *</label><input type="date" [(ngModel)]="f.date"></div></div>
+        <div class="fr"><div class="fg"><label>Reason *</label><input [(ngModel)]="f.reason" maxlength="120"></div></div>
+        <div class="form-err" [style.display]="err() ? 'block' : 'none'">{{err()}}</div>
+        <div class="btn-grp"><button class="btn btn-p" (click)="save()">Save Return</button> <button class="btn btn-s" (click)="close()">Cancel</button></div>
+      </div></div>
+  }`,
+})
+export class InvPretComponent {
+  fmtD = fmtD; fmtR = fmtR; cdr = inject(ChangeDetectorRef);
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  pretRows = signal<Pret[]>([]); issued = signal<{ code: string; sku: string; itemName: string; out: number }[]>([]);
+  isOpen = signal(false); err = signal('');
+  f = { req: '', qty: 0, cond: 'Good — back to stock', reason: '', date: todayIso(), av: '' };
+
+  constructor() { void this.reload(); }
+  open() { this.f = { req: '', qty: 0, cond: 'Good — back to stock', reason: '', date: todayIso(), av: '' }; this.isOpen.set(true); this.err.set(''); this.cdr.detectChanges(); }
+  close(e?: MouseEvent) { if (!e || (e.target as HTMLElement).classList.contains('modal-bg')) this.isOpen.set(false); this.cdr.detectChanges(); }
+  async reload() {
+    const r = await this.api.get<{ rows: Pret[]; issued: { code: string; sku: string; itemName: string; out: number }[] }>('/parts/returns');
+    this.pretRows.set(r.rows); this.issued.set(r.issued);
+    this.cdr.detectChanges();
+  }
+  avail() {
+    const i = this.issued().find((x) => x.code === this.f.req);
+    this.f.av = i ? String(i.out) : '';
+    if (i) this.f.qty = i.out; // prChanged 5184
+    this.cdr.detectChanges();
+  }
+  async save() {
+    this.err.set('');
+    try {
+      const r = await this.api.post<{ code: string }>('/parts/returns', { req: this.f.req, qty: this.f.qty, cond: this.f.cond, reason: this.f.reason, date: this.f.date });
+      this.toast.show(r.code + ' saved.');
+      this.isOpen.set(false);
+      await this.reload();
+    } catch (e) { this.err.set((e as ApiError).message); this.cdr.detectChanges(); }
+  }
 }

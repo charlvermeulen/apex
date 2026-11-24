@@ -17,6 +17,7 @@ import { gl } from './routes/gl.routes.js';
 import { assets } from './routes/assets.routes.js';
 import { contracts } from './routes/contracts.routes.js';
 import { billing } from './routes/billing.routes.js';
+import { service } from './routes/service.routes.js';
 import { ApiError, AuthedReq } from './middleware.js';
 
 const app = express();
@@ -39,6 +40,7 @@ app.use('/api/gl', gl);
 app.use('/api', assets);
 app.use('/api', contracts);
 app.use('/api', billing);
+app.use('/api', service);
 
 // errors: {error} shape, 500 never leaks SQL
 app.use((err: unknown, _req: AuthedReq, res: express.Response, _next: express.NextFunction) => {

@@ -10,6 +10,7 @@ const DEMO_COA = Object.fromEntries([
   ['6010', 'Nedbank Savings', 'Bank', '—', 95200, false],
   ['6100', 'Accounts Receivable', 'Current Asset', '—', 479500, false],
   ['6200', 'Inventory Asset', 'Current Asset', '—', 86400, false],
+  ['6210', 'Work in Progress', 'Current Asset', '—', 0, false],
   ['6300', 'VAT Input (Claimable)', 'Tax Asset', '01', 62400, false],
   ['5000', 'Property & Equipment', 'Fixed Asset', '—', 1240000, false],
   ['5010', 'Accumulated Depreciation', 'Contra Asset', '—', -18600, false],
@@ -178,13 +179,13 @@ const seed = async () => {
       await db.query(`insert into meter_types (company_id, name, rev, cos) values ($1,$2,'1000','2000')`, [co.id, name]);
 
     for (const e of [
-      ['EM-0001', 'Pieter Botha', 'pieter@example.co.za', '082 555 0101', true, false],
-      ['EM-0002', 'Lerato Dlamini', 'lerato@example.co.za', '083 555 0102', false, true],
-      ['EM-0003', 'Naledi Khumalo', 'naledi@example.co.za', '084 555 0103', true, true],
+      ['EM-0001', 'Pieter Botha', 'pieter@example.co.za', '082 555 0101', true, false, true],
+      ['EM-0002', 'Lerato Dlamini', 'lerato@example.co.za', '083 555 0102', false, true, false],
+      ['EM-0003', 'Naledi Khumalo', 'naledi@example.co.za', '084 555 0103', true, true, false],
     ])
       await db.query(
-        `insert into employees (company_id, code, name, email, phone, is_mgr, is_sales) values ($1,$2,$3,$4,$5,$6,$7)`,
-        [co.id, e[0], e[1], e[2], e[3], e[4], e[5]]);
+        `insert into employees (company_id, code, name, email, phone, is_mgr, is_sales, is_tech) values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [co.id, e[0], e[1], e[2], e[3], e[4], e[5], e[6]]);
 
     const EMP_FIND = (mgr, sales) => mgr && sales ? 'EM-0003' : mgr ? 'EM-0001' : sales ? 'EM-0002' : null;
     for (const c of [

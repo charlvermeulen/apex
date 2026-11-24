@@ -18,11 +18,40 @@ Plan of record: `C:\Users\James\.claude\plans\start-converting-the-app-robust-le
 | 1 | auth + roles + multi-company + settings + COA + GL foundation | âœ… done, commit `5d6978e` on `batch-1/auth-gl-foundation` (2026-11-10) |
 | 2 | customers/suppliers/inventory + AR/AP + GL transactions & enquiries (glJournalBase â†’ posting-time journal inserts) | âœ… done on `batch-2/masterdata-ar-ap-gl` (2026-11-11) |
 | 3 | contracts + billing (+Employees, minimal assets) | âœ… done on `batch-3/contracts-billing` (2026-11-24) |
-| 4 | service/work orders (+ employees, service types) | |
+| 4 | service/work orders (+ inventory parts requests, asset service/dep, svctypes, technicians) | âœ… done on `batch-4/service-workorders` (2026-11-24) |
 | 5 | procurement/buybacks/conversions (glBB/glCV) | |
 | 6 | VAT (vat_periods table + assertPostingDate port of checkPostingDate 2791) | |
 | 7 | reports/budgets/exports + closing journal + FY totals recompute | |
 | after | statements/outbox/dashboard KPIs, PAYE, tax calendar, localStorage importer option | deferred |
+
+## Batch 4 — done (2026-11-24)
+
+Branch `batch-4/service-workorders`, committed. Migration `009_service.sql` (call_types, sla_targets, service_calls, call_requests, work_orders + wo_parts, part_requests/returns, asset_services, asset_depreciation; backfills account 6210 Work in Progress + call-type/SLA seeds for every company).
+
+### Gates — tsc api + web green; ng build 686.50 kB initial (budget raised to 750 kB)
+
+### Validated (Playwright direct scripts — MCP plugin failed to connect again; deleted before commit)
+- Admin UI pass (21/22 → 22/22 after poll-based waits): login → dashboard, sidebar Service live (`/service/calls`), calls list + 4 stat cards, empty-save verbatim "Select the customer.", customer→asset filtered options, covered-contract hint ("Covered by contract CON-… (…)."/"…the call may be chargeable."), save toast `Service call SC-00xxx saved.`, WO modal (call options exclude calls with open WOs; instr prefill from call), save toast, **Print WO popup contains "WORK ORDER" doc**, WIP rows + stats, SLA inputs 8 + verbatim res<resp block, svctypes tab live (4 seeds, add/toggle/delete with guards), dep rows with Posted/Pending chips, asset service history rows (from completed calls), part request rows + availability fill.
+- API smoke (~35 checks): SLA defaults (Urgent 0/1 · Res 2/5), PUT validation "The resolve target cannot be shorter than the respond target.", call validation order verbatim (3754–3772): cust → asset link → "That asset is not active." → future logged → "Choose a technician before setting the status to…", Logged+tech auto-flip to Assigned, start w/o tech "Assign a technician first.", request create/convert (call SC from RQ, contact appended to descr), WO guards verbatim ("Choose the technician.", "That call already has an open work order.", sched-before-logged, completed-date rules), **GL materialisation**: PR issue w/ WO → Dr 6210 / Cr cat inv (`Parts issued to WIP`), direct issue → Dr cos / Cr inv, WO completion → call completed + cost = wo parts + asset svc history + per-request `WIP to Cost of Sales` (Dr COS / Cr 6210), post-completion good return → Dr inv / Cr cos; dep run: pending states per depRows port, post → Dr 4020 / Cr 5010 single DEP-000x journal, re-post "Nothing to post for 2026-11."; employee tech-removal guard `"Pieter Botha is assigned to service calls, so the Technician role cannot be removed."`, delete guard now counts calls ("used on a service call").
+
+### Bugs found & fixed during validation
+- **pg lowercases unquoted SQL aliases**: `as postedAmt` arrives as `postedamt` → `a.postedAmt` read as `undefined` → dep amounts NaN (JSON null). Rule: quote camelCase aliases (`as "postedAmt"`).
+- **`nullif($n,'')` on a date column throws 42804** ('column "sched" is of type date but expression is of type text'): pg infers the param from context. Use `nullif($n::text,'')::date`. (Bulk sed also wrongly cast `tech_code` in the WO insert — caught by smoke 22007.)
+- **Route collision**: contracts already defines `GET /staff` → service staff endpoint renamed `/techs` (matches legacy DATA.techs). Call-types live on the flat service router (`/api/call-types`) even though guarded by `settings:svctypes` — settings router mounts under `/api/settings`.
+- Component `save()` dereferenced `this.edit()!.code` before create/update branch → crash on create; fixed to `?.code ?? ''` in calls + WO components.
+- SLA targets PUT with only some priorities overwrites only listed rows (legacy saves all 4 from the grid; UI always sends all 4).
+
+### Deviations / notes
+- **Depreciation now posts to GL** (Dr 4020/Cr 5010, one journal per run, ref DEP-000x, src `Depreciation`, src_id = month) — legacy `glJournal()` never derived dep journals (register + GL disagreed). Deliberate, flagged for batch 7.
+- **glWip materialised at events** (issue / return / WO completion) instead of legacy's derived-at-render: same numbers for the normal flow; edge case — a return on a completed call before `cd` (= max(completed, issued)) can't know future completion, mapped as: no-WO returns and post-completion-date returns → COS, earlier returns → out of WIP.
+- WO/WIP PDF-Excel exports (svExport) deferred with the batch-7 export engine.
+- Service notification emails (svcNotify, customer Service Email) deferred to the outbox/notification batch — `n_created`/`n_done` columns exist for it.
+- Call-type delete 409 strings are new (legacy blocked silently); "at least one stays active" toggle guard verbatim (toast → 400).
+- WIP `/api/wip` computes age/hours/parts/slaState server-side (legacy rendered client-side); part-availability keeps legacy semantics — issued parts reduce availability (onhand − net issued) but stock_moves/card are untouched, as legacy.
+- Viewer keeps `service:'*'` (legacy quirk, ported verbatim — same as cbilling).
+
+### Demo DB artifacts
+SC-0001..0019 (incl. completed SC-0001 → AST-0004 svc history), WO-0001..0011, RQ-0001, PR-00001..7, PT-00001.., SLA Low restored to 5/10, call types back to the 4 seeds, journals: `Parts issued to WIP` / `Parts issued` / `Part return` / `WIP to Cost of Sales` / DEP-0001. EM-0001 Pieter Botha is a Technician (is_tech=true, seed updated too). Account **6210 Work in Progress** added to demo COA (both seed copies updated).
 
 ## Batch 3 — done (2026-11-24)
 

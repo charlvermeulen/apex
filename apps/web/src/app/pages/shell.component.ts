@@ -100,7 +100,7 @@ export class ShellComponent {
   private CONVERTED: Record<string, string> = {
     customers: '/customers/list', suppliers: '/suppliers/list', gl: '/gl/coa',
     inventory: '/inventory/items', procurement: '/procurement/pi',
-    assets: '/assets/register', contracts: '/contracts/list', cbilling: '/cbilling/run',
+    assets: '/assets/register', service: '/service/calls', contracts: '/contracts/list', cbilling: '/cbilling/run',
   };
   linkFor = (m: string) => {
     const conv = this.CONVERTED[m];
@@ -108,7 +108,7 @@ export class ShellComponent {
   };
   iconFor = (m: string) => ({
     customers: 'ti-users', suppliers: 'ti-truck', gl: 'ti-books', inventory: 'ti-box',
-    procurement: 'ti-shopping-cart', assets: 'ti-box-several', service: 'ti-circle-dashed',
+    procurement: 'ti-shopping-cart', assets: 'ti-box-several', service: 'ti-headset',
     contracts: 'ti-file-text', cbilling: 'ti-receipt-2', vat: 'ti-circle-dashed',
     paye: 'ti-circle-dashed', taxcal: 'ti-circle-dashed', reports: 'ti-circle-dashed',
   })[m] ?? '';

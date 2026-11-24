@@ -16,6 +16,7 @@ const DEMO_COA: [string, string, string, string, number, boolean][] = [
   ['6010', 'Nedbank Savings', 'Bank', '—', 95200, false],
   ['6100', 'Accounts Receivable', 'Current Asset', '—', 479500, false],
   ['6200', 'Inventory Asset', 'Current Asset', '—', 86400, false],
+  ['6210', 'Work in Progress', 'Current Asset', '—', 0, false],
   ['6300', 'VAT Input (Claimable)', 'Tax Asset', '01', 62400, false],
   ['5000', 'Property & Equipment', 'Fixed Asset', '—', 1240000, false],
   ['5010', 'Accumulated Depreciation', 'Contra Asset', '—', -18600, false],

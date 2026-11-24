@@ -4,7 +4,7 @@ import { Component, ChangeDetectorRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService, ApiError, ToastService } from '../../core/api';
-import { todayIso } from '../../core/fmt';
+import { fmtR, fmtD, todayIso } from '../../core/fmt';
 
 export const ASSET_CATS = ['Computer Equipment', 'Furniture & Fittings', 'Motor Vehicles', 'Plant & Machinery', 'Office Equipment', 'Tools', 'Printing Machines'];
 const ATYPES: Record<string, string> = { company: 'Company Asset', warehouse: 'Warehouse (Inventory)', customer: 'Customer Asset' };
@@ -187,5 +187,111 @@ export class AssetFormComponent {
       this.router.navigate(['/assets/register']);
     } catch (e) { this.err.set((e as ApiError).message); }
     finally { this.busy.set(false); this.cdr.detectChanges(); }
+  }
+}
+
+// ── Maintenance & Service tab (assTab 'svc' / renderSvc 3286 / saveSvc 3298) ──
+interface SvcRow { id: string; asset: string; assetName: string; date: string; type: string; sup: string; cost: number; next: string | null; notes: string }
+
+@Component({
+  selector: 'app-assets-svc',
+  imports: [FormsModule],
+  template: `
+  <div class="card"><div class="card-title">Maintenance &amp; Service <button class="btn btn-p btn-sm" (click)="openModal()">Log Service</button></div>
+    <table><thead><tr><th>Date</th><th>Asset</th><th>Type</th><th>Supplier / Technician</th><th class="tr">Cost</th><th>Next service</th><th>Notes</th></tr></thead><tbody>
+      @for (x of rows(); track x.id) {
+        <tr><td>{{fmtD(x.date,1)}}</td><td>{{x.asset}} — {{x.assetName}}</td><td>{{x.type}}</td><td>{{x.sup || '—'}}</td>
+          <td class="tr">{{fmtR(x.cost)}}</td>
+          <td>@if (x.next) { {{fmtD(x.next,1)}}@if (x.next < todayIso()) { <span class="chip c-dn">Overdue</span> } } @else { — }</td>
+          <td>{{x.notes}}</td></tr>
+      } @empty { <tr><td colspan="7" style="text-align:center;color:var(--txm)">No services logged.</td></tr> }
+    </tbody></table></div>
+  @if (isOpen()) {
+    <div class="modal-bg" style="display:block" (click)="close($event)">
+      <div class="modal" style="max-width:560px" (click)="$event.stopPropagation()">
+        <div class="rm-hd"><strong>Log Service</strong><button class="btn btn-s btn-sm" (click)="close()">✕</button></div>
+        <div class="fr"><div class="fg"><label>Asset *</label><select [(ngModel)]="f.asset"><option value="">Select asset…</option>
+            @for (a of assets(); track a.code) { <option [value]="a.code">{{a.code}} — {{a.name}}</option> }</select></div>
+          <div class="fg"><label>Type *</label><select [(ngModel)]="f.type"><option>Repair</option><option>Routine service</option><option>Inspection / Certification</option><option>Other</option></select></div></div>
+        <div class="fr3">
+          <div class="fg"><label>Date *</label><input type="date" [(ngModel)]="f.date"></div>
+          <div class="fg"><label>Supplier / Technician</label><input [(ngModel)]="f.sup" maxlength="80"></div>
+          <div class="fg"><label>Cost (excl VAT)</label><input type="number" min="0" step="0.01" [(ngModel)]="f.cost"></div></div>
+        <div class="fr3">
+          <div class="fg"><label>Next service due</label><input type="date" [(ngModel)]="f.next"></div>
+          <div class="fg" style="grid-column:span 2"><label>Notes</label><input [(ngModel)]="f.notes" maxlength="160"></div></div>
+        <div class="form-err" [style.display]="err() ? 'block' : 'none'">{{err()}}</div>
+        <div class="btn-grp"><button class="btn btn-p" (click)="save()">Log Service</button> <button class="btn btn-s" (click)="close()">Cancel</button></div>
+      </div></div>
+  }`,
+})
+export class AssetsSvcComponent {
+  fmtR = fmtR; fmtD = fmtD; todayIso = todayIso; cdr = inject(ChangeDetectorRef);
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  rows = signal<SvcRow[]>([]); assets = signal<{ code: string; name: string; status: string }[]>([]);
+  isOpen = signal(false); err = signal('');
+  f = { asset: '', date: todayIso(), type: 'Repair', sup: '', cost: 0, next: '', notes: '' };
+
+  constructor() { void this.reload(); }
+  openModal() { this.f = { asset: '', date: todayIso(), type: 'Repair', sup: '', cost: 0, next: '', notes: '' }; this.isOpen.set(true); this.err.set(''); this.cdr.detectChanges(); }
+  close(e?: MouseEvent) { if (!e || (e.target as HTMLElement).classList.contains('modal-bg')) this.isOpen.set(false); this.cdr.detectChanges(); }
+  async reload() {
+    const [rows, assets] = await Promise.all([this.api.get<SvcRow[]>('/assets/services'), this.api.get<{ code: string; name: string; status: string }[]>('/assets')]);
+    this.rows.set(rows); this.assets.set(assets.filter((a) => a.status === 'Active'));
+    this.cdr.detectChanges();
+  }
+  async save() {
+    this.err.set('');
+    try {
+      await this.api.post('/assets/services', this.f);
+      this.toast.show('Service logged.');
+      this.isOpen.set(false);
+      await this.reload();
+    } catch (e) { this.err.set((e as ApiError).message); this.cdr.detectChanges(); }
+  }
+}
+
+// ── Depreciation tab (assTab 'dep' / depRows 3306 / postDep 3319) ──
+interface DepRow { code: string; name: string; cost: number; amt: number; acc: number; state: string }
+
+@Component({
+  selector: 'app-assets-dep',
+  imports: [FormsModule],
+  template: `
+  <div class="notice"><i class="ti ti-info-circle"></i> <div>Straight-line depreciation: (cost − residual value) ÷ useful life, charged monthly from the month of purchase. Posting records the charge once per asset per month and requires an open financial year.</div></div>
+  <div class="card"><div class="card-title">Monthly Depreciation Run</div>
+    <div class="fr"><div class="fg"><label>Month</label><input type="month" [(ngModel)]="month" (ngModelChange)="load()"></div>
+      <div class="fg"><label>&nbsp;</label><button class="btn btn-p" (click)="post()"><i class="ti ti-player-play"></i> Post Depreciation</button></div></div></div>
+  <div class="card"><div class="card-title">Depreciation — {{month}}</div>
+    <div class="form-err" [style.display]="err() ? 'block' : 'none'">{{err()}}</div>
+    <table><thead><tr><th>Asset</th><th class="tr">Cost</th><th class="tr">Monthly charge</th><th class="tr">Accumulated</th><th>Status</th></tr></thead><tbody>
+      @for (r of rows(); track r.code) {
+        <tr><td>{{r.code}} — {{r.name}}</td><td class="tr">{{fmtR(r.cost)}}</td><td class="tr">{{fmtR(r.amt)}}</td><td class="tr">{{fmtR(r.acc)}}</td>
+          <td><span class="chip {{r.state === 'Posted' ? 'c-ok' : r.state === 'Pending' ? 'c-wn' : 'c-nt'}}">{{r.state}}</span></td></tr>
+      } @empty { <tr><td colspan="5" style="text-align:center;color:var(--txm)">No depreciable assets for this month.</td></tr> }
+    </tbody></table></div>`,
+})
+export class AssetsDepComponent {
+  fmtR = fmtR; cdr = inject(ChangeDetectorRef);
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  rows = signal<DepRow[]>([]);
+  month = todayIso().slice(0, 7);
+  err = signal('');
+
+  constructor() { void this.load(); }
+  async load() {
+    this.rows.set(await this.api.get<DepRow[]>('/assets/dep?month=' + this.month));
+    this.cdr.detectChanges();
+  }
+  async post() {
+    this.err.set('');
+    try {
+      const r = await this.api.post<{ count: number; total: number }>('/assets/dep', { month: this.month });
+      this.toast.show('Depreciation posted for ' + r.count + ' asset(s).');
+      await this.load();
+    } catch (e) { this.err.set((e as ApiError).message); this.toast.show((e as ApiError).message); }
+    this.cdr.detectChanges();
   }
 }

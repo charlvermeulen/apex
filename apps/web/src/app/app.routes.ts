@@ -14,14 +14,15 @@ import {
 import { CustSiComponent, CustCnComponent, CustRcptComponent, CustJnlComponent, CustEnqComponent, AgedComponent } from './pages/customers/customers-trans.pages';
 import { SupListComponent, SupAddComponent, SupJnlComponent, SupEnqComponent } from './pages/suppliers/suppliers.pages';
 import { ProcurementComponent, PiComponent, DnComponent } from './pages/procurement/procurement.pages';
-import { InvItemsComponent, InvCatsComponent, InvItemAddComponent, InvCardComponent, InvValComponent } from './pages/inventory/inventory.pages';
-import { AssetsRegisterComponent, AssetFormComponent } from './pages/assets/assets.pages';
+import { InvItemsComponent, InvCatsComponent, InvItemAddComponent, InvCardComponent, InvValComponent, InvPreqComponent, InvPretComponent } from './pages/inventory/inventory.pages';
+import { AssetsRegisterComponent, AssetFormComponent, AssetsSvcComponent, AssetsDepComponent } from './pages/assets/assets.pages';
 import { ContractsListComponent, ContractFormComponent } from './pages/contracts/contracts.pages';
 import { CbRunComponent, CbMetersComponent, CbPeriodsComponent, CbEscComponent, CbHistComponent, CustCinvComponent } from './pages/billing/billing.pages';
+import { SvCallsComponent, SvReqsComponent, SvWoComponent, SvWipComponent, SvSlaComponent } from './pages/service/service.pages';
 import {
   SettingsComponent, CompanyTaxComponent, YearsComponent, CompaniesTabComponent,
   UsersComponent, RolesComponent, EmailComponent, LogComponent, SitypesComponent,
-  CtypesComponent, EmployeesComponent,
+  CtypesComponent, EmployeesComponent, SvctypesComponent,
 } from './pages/settings/settings.pages';
 
 // Per-module tab maps: {label, child path suffix, sec, ready?}
@@ -47,6 +48,8 @@ const invTabs: ModTab[] = [
   { label: 'Inventory Items', path: '/inventory/items', sec: 'maint', icon: 'ti-box' },
   { label: 'Categories', path: '/inventory/cats', sec: 'maint', icon: 'ti-folders' },
   { label: 'Add Item', path: '/inventory/add', sec: 'maint', icon: 'ti-plus' },
+  { label: 'Part Requests', path: '/inventory/preq', sec: 'trans', icon: 'ti-package-export' },
+  { label: 'Part Returns', path: '/inventory/pret', sec: 'trans', icon: 'ti-package-import' },
   { label: 'Item Enquiry', path: '/inventory/card', sec: 'enq', icon: 'ti-search' },
   { label: 'Stock Valuation', path: '/inventory/valuation', sec: 'enq', icon: 'ti-chart-pie' },
 ];
@@ -60,8 +63,8 @@ const glTabs: ModTab[] = [
 ];
 const assetTabs: ModTab[] = [
   { label: 'Asset Register', path: '/assets/register', sec: 'maint', icon: 'ti-box-several' },
-  { label: 'Maintenance & Service', path: '/assets/svc', sec: 'maint', icon: 'ti-tool', ready: false },
-  { label: 'Depreciation', path: '/assets/dep', sec: 'maint', icon: 'ti-arrow-down-right', ready: false },
+  { label: 'Maintenance & Service', path: '/assets/svc', sec: 'maint', icon: 'ti-tool', ready: true },
+  { label: 'Depreciation', path: '/assets/dep', sec: 'maint', icon: 'ti-arrow-down-right', ready: true },
 ];
 const conTabs: ModTab[] = [
   { label: 'Contracts', path: '/contracts/list', sec: 'maint', icon: 'ti-file-text' },
@@ -73,6 +76,13 @@ const billTabs: ModTab[] = [
   { label: 'Billing Periods', path: '/cbilling/periods', sec: 'trans', icon: 'ti-calendar' },
   { label: 'Escalation', path: '/cbilling/escalate', sec: 'trans', icon: 'ti-trending-up' },
   { label: 'Billing History', path: '/cbilling/hist', sec: 'enq', icon: 'ti-history' },
+];
+const svcTabs: ModTab[] = [
+  { label: 'Service Calls', path: '/service/calls', sec: 'trans', icon: 'ti-headset' },
+  { label: 'Call Requests', path: '/service/reqs', sec: 'trans', icon: 'ti-message-2' },
+  { label: 'Work Orders', path: '/service/wo', sec: 'trans', icon: 'ti-clipboard-list' },
+  { label: 'Work In Progress', path: '/service/wip', sec: 'enq', icon: 'ti-progress' },
+  { label: 'Call SLA', path: '/service/sla', sec: 'enq', icon: 'ti-stopwatch' },
 ];
 
 export const routes: Routes = [
@@ -138,6 +148,8 @@ export const routes: Routes = [
           { path: 'items', component: InvItemsComponent, data: { mod: 'inventory', sec: 'maint' }, canActivate: [canSecGuard] },
           { path: 'cats', component: InvCatsComponent, data: { mod: 'inventory', sec: 'maint' }, canActivate: [canSecGuard] },
           { path: 'add', component: InvItemAddComponent, data: { mod: 'inventory', sec: 'maint' }, canActivate: [canSecGuard] },
+          { path: 'preq', component: InvPreqComponent, data: { mod: 'inventory', sec: 'trans' }, canActivate: [canSecGuard] },
+          { path: 'pret', component: InvPretComponent, data: { mod: 'inventory', sec: 'trans' }, canActivate: [canSecGuard] },
           { path: 'card', component: InvCardComponent, data: { mod: 'inventory', sec: 'enq' }, canActivate: [canSecGuard] },
           { path: 'valuation', component: InvValComponent, data: { mod: 'inventory', sec: 'enq' }, canActivate: [canSecGuard] },
         ],
@@ -159,6 +171,21 @@ export const routes: Routes = [
           { path: '', pathMatch: 'full', redirectTo: 'register' },
           { path: 'register', component: AssetsRegisterComponent, data: { mod: 'assets', sec: 'maint' }, canActivate: [canSecGuard] },
           { path: 'add', component: AssetFormComponent, data: { mod: 'assets', sec: 'maint' }, canActivate: [canSecGuard] },
+          { path: 'svc', component: AssetsSvcComponent, data: { mod: 'assets', sec: 'maint' }, canActivate: [canSecGuard] },
+          { path: 'dep', component: AssetsDepComponent, data: { mod: 'assets', sec: 'maint' }, canActivate: [canSecGuard] },
+        ],
+      },
+      {
+        path: 'service', component: ModTabsComponent,
+        data: { mod: 'service', title: 'Service', sub: 'Service calls for customers and their assets, assigned to technicians', tabs: svcTabs },
+        canActivate: [canSecGuard],
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'calls' },
+          { path: 'calls', component: SvCallsComponent, data: { mod: 'service', sec: 'trans' }, canActivate: [canSecGuard] },
+          { path: 'reqs', component: SvReqsComponent, data: { mod: 'service', sec: 'trans' }, canActivate: [canSecGuard] },
+          { path: 'wo', component: SvWoComponent, data: { mod: 'service', sec: 'trans' }, canActivate: [canSecGuard] },
+          { path: 'wip', component: SvWipComponent, data: { mod: 'service', sec: 'enq' }, canActivate: [canSecGuard] },
+          { path: 'sla', component: SvSlaComponent, data: { mod: 'service', sec: 'enq' }, canActivate: [canSecGuard] },
         ],
       },
       {
@@ -198,6 +225,7 @@ export const routes: Routes = [
           { path: 'sitypes', component: SitypesComponent, data: { mod: 'settings', sec: 'sitypes' }, canActivate: [canSecGuard] },
           { path: 'ctypes', component: CtypesComponent, data: { mod: 'settings', sec: 'ctypes' }, canActivate: [canSecGuard] },
           { path: 'employees', component: EmployeesComponent, data: { mod: 'settings', sec: 'employees' }, canActivate: [canSecGuard] },
+          { path: 'svctypes', component: SvctypesComponent, data: { mod: 'settings', sec: 'svctypes' }, canActivate: [canSecGuard] },
         ],
       },
     ],

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { q } from '../db.js';
 import { ApiError, AuthedReq, logEv, requireAuth, requireCan } from '../middleware.js';
-import { checkPostingDate, nextDocRef, withTx } from '../posting.js';
+import { checkPostingDate, nextDocRef, postJournal, r2, withTx } from '../posting.js';
 
 export const assets = Router();
 assets.use(requireAuth);
@@ -150,6 +150,119 @@ assets.post('/assets/:code/dispose', requireCan('assets', 'maint'), async (req: 
       await c.query(`update assets set status = 'Disposed', disposed = $2 where company_id = $1 and code = $3`, [req.companyId, todayISO(), a.code]);
       await logEv(req.user!.id, req.user!.username, 'Asset disposed', a.code, req.companyId);
       res.json({ ok: true });
+    });
+  } catch (e) { next(e); }
+});
+
+// ── Maintenance & Service tab (renderSvc/saveSvc 3286–3304) ──
+
+assets.get('/assets/services', requireCan('assets', 'maint'), async (req: AuthedReq, res, next) => {
+  try {
+    res.json((await q(
+      `select s.id, s.asset_code as asset, a.name as "assetName", s.entry_date as date, s.type,
+              coalesce(s.sup,'') as sup, s.cost::float, s.next, coalesce(s.notes,'') as notes
+         from asset_services s left join assets a on a.company_id = s.company_id and a.code = s.asset_code
+        where s.company_id = $1 order by s.entry_date desc, s.id desc`, [req.companyId])).rows);
+  } catch (e) { next(e); }
+});
+
+assets.post('/assets/services', requireCan('assets', 'maint'), async (req: AuthedReq, res, next) => {
+  try {
+    const o = z.object({ asset: z.string(), date: z.string(), type: z.string(), sup: z.string().optional().default(''), cost: z.number(), next: z.string().optional().default(''), notes: z.string().optional().default('') }).parse(req.body);
+    await withTx(async (c) => {
+      if (!o.asset || !o.date) throw new ApiError(400, 'Choose an asset and enter the service date.');
+      if (!(o.cost >= 0)) throw new ApiError(400, 'Cost cannot be negative.');
+      if (o.next && o.next <= o.date) throw new ApiError(400, 'The next service date must be after this service.');
+      if (!(await c.query(`select 1 as x from assets where company_id = $1 and code = $2 and status = 'Active'`, [req.companyId, o.asset])).rows[0])
+        throw new ApiError(400, 'Asset not found.');
+      await c.query(
+        `insert into asset_services (company_id, asset_code, entry_date, type, sup, cost, next, notes)
+         values ($1,$2,$3,$4,nullif($5,''),$6,nullif($7::text,'')::date,nullif($8,''))`,
+        [req.companyId, o.asset, o.date, o.type, o.sup.trim(), o.cost, o.next, o.notes.trim()]);
+      await logEv(req.user!.id, req.user!.username, 'Service logged', o.asset, req.companyId);
+      res.status(201).json({ ok: true });
+    });
+  } catch (e) { next(e); }
+});
+
+// ── Depreciation tab (depRows/postDep 3306–3326) ──
+
+// depRows port: company-type Active assets purchased in/before the month
+assets.get('/assets/dep', requireCan('assets', 'enq'), async (req: AuthedReq, res, next) => {
+  try {
+    const month = String(req.query.month || todayISO().slice(0, 7));
+    const r2v = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
+    const rows = (await q(
+      `select a.code, a.name, a.cost::float, a.res::float, a.life, a.purchase_date as date,
+              coalesce(d.amount, 0)::float as "postedAmt",
+              coalesce((select sum(x.amount) from asset_depreciation x where x.company_id = a.company_id and x.asset_code = a.code), 0)::float as "doneAll"
+         from assets a
+         left join asset_depreciation d on d.company_id = a.company_id and d.asset_code = a.code and d.month = $2
+        where a.company_id = $1 and a.status = 'Active' and a.atype = 'company' and to_char(a.purchase_date,'YYYY-MM') <= $2
+        order by a.code`, [req.companyId, month])).rows as any[];
+    const out = rows.map((a) => {
+      const posted = a.postedAmt > 0;
+      const [y1, m1] = String(a.date).slice(0, 7).split('-').map(Number) as [number, number];
+      const [y2, m2] = month.split('-').map(Number);
+      const n = (y2 - y1) * 12 + (m2 - m1);
+      const monthly = a.life > 0 ? r2v((a.cost - a.res) / a.life) : 0;
+      let amt = monthly;
+      const max = r2v(a.cost - a.res - a.doneAll + (posted ? a.postedAmt : 0));
+      amt = Math.min(amt, Math.max(0, max));
+      const state = posted ? 'Posted' : (n >= a.life || amt <= 0 ? 'Fully depreciated' : 'Pending');
+      const acc = r2v(a.doneAll + (posted ? 0 : (state === 'Pending' ? amt : 0)));
+      return { code: a.code, name: a.name, cost: a.cost, amt: posted ? a.postedAmt : amt, acc, state };
+    });
+    res.json(out);
+  } catch (e) { next(e); }
+});
+
+// postDep (3319–3326). Legacy never wrote GL for depreciation (derived GL ignored dep) — deliberate deviation:
+// the rewrite materialises one journal per run (Dr 4020 / Cr 5010) so reports batch 7 agrees.
+assets.post('/assets/dep', requireCan('assets', 'maint'), async (req: AuthedReq, res, next) => {
+  try {
+    const { month } = z.object({ month: z.string() }).parse(req.body);
+    if (!/^\d{4}-\d{2}$/.test(month)) throw new ApiError(400, 'Choose a month.');
+    await withTx(async (c) => {
+      const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).toISOString().slice(0, 10);
+      const chk = await checkPostingDate(c, req.companyId!, last);
+      if (chk) throw new ApiError(400, chk);
+      const rows = (await q(
+        `select a.code, a.cost::float, a.res::float, a.life, a.purchase_date as date,
+                coalesce(d.amount, 0)::float as "postedAmt",
+                coalesce((select sum(x.amount) from asset_depreciation x where x.company_id = a.company_id and x.asset_code = a.code), 0)::float as "doneAll"
+           from assets a
+           left join asset_depreciation d on d.company_id = a.company_id and d.asset_code = a.code and d.month = $2
+          where a.company_id = $1 and a.status = 'Active' and a.atype = 'company' and to_char(a.purchase_date,'YYYY-MM') <= $2`,
+        [req.companyId, month])).rows as any[];
+      const todo: { code: string; amt: number }[] = [];
+      for (const a of rows) {
+        const posted = a.postedAmt > 0;
+        if (posted) continue;
+        const [y1, m1] = String(a.date).slice(0, 7).split('-').map(Number) as [number, number];
+        const [y2, m2] = month.split('-').map(Number);
+        const n = (y2 - y1) * 12 + (m2 - m1);
+        const monthly = a.life > 0 ? r2((a.cost - a.res) / a.life) : 0;
+        const max = r2(a.cost - a.res - a.doneAll);
+        const amt = Math.min(monthly, Math.max(0, max));
+        if (n >= a.life || amt <= 0) continue;
+        todo.push({ code: a.code, amt });
+      }
+      if (!todo.length) throw new ApiError(400, `Nothing to post for ${month}.`);
+      const accs = (await c.query(`select code from accounts where company_id = $1 and code in ('4020','5010')`, [req.companyId])).rows;
+      if (accs.length < 2) throw new ApiError(400, 'Depreciation needs accounts 4020 (Depreciation) and 5010 (Accumulated Depreciation) on the Chart of Accounts.');
+      for (const t of todo)
+        await c.query(`insert into asset_depreciation (company_id, asset_code, month, amount) values ($1,$2,$3,$4)`, [req.companyId, t.code, month, t.amt]);
+      const fyId = (await c.query('select id from financial_years where company_id = $1 and start <= $2 and end_date >= $3', [req.companyId, last, last])).rows[0]?.id ?? null;
+      const total = r2(todo.reduce((s, t) => s + t.amt, 0));
+      const ref = `DEP-${String((await c.query(`select count(*)::int as n from journals where company_id = $1 and ref like 'DEP-%'`, [req.companyId])).rows[0].n + 1).padStart(4, '0')}`;
+      await postJournal(c, {
+        companyId: req.companyId!, fyId, date: last, ref, src: 'Depreciation', srcType: 'depreciation', srcId: month,
+        desc: `Monthly depreciation — ${month}`, userId: req.user!.id,
+        lines: [{ acc: '4020', dr: total, cr: 0 }, { acc: '5010', dr: 0, cr: total }],
+      });
+      await logEv(req.user!.id, req.user!.username, 'Depreciation posted', `${month} — ${todo.length} assets, ${total}`, req.companyId);
+      res.json({ count: todo.length, total });
     });
   } catch (e) { next(e); }
 });

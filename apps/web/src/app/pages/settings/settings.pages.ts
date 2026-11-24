@@ -37,7 +37,7 @@ export class SettingsComponent {
     { key: 'log', sec: 'log', path: '/settings/log', ready: true },
     { key: 'ctypes', sec: 'ctypes', path: '/settings/ctypes', ready: true },
     { key: 'sitypes', sec: 'sitypes', path: '/settings/sitypes', ready: true },
-    { key: 'svctypes', sec: 'svctypes', path: '', ready: false },
+    { key: 'svctypes', sec: 'svctypes', path: '/settings/svctypes', ready: true },
     { key: 'employees', sec: 'employees', path: '/settings/employees', ready: true },
   ];
   allowed = () => this.tabs.filter((t) => this.auth.canSec()('settings', t.sec));
@@ -914,6 +914,72 @@ export class CtypesComponent {
   async delMt(t: MType) {
     if (!confirm('Delete "' + t.name + '"?')) return;
     try { await this.api.del('/mtypes/' + encodeURIComponent(t.name)); await this.reload(); }
+    catch (e) { this.toast.show((e as ApiError).message); }
+    this.cdr.detectChanges();
+  }
+}
+
+// ── Settings ▸ Service Call Types (legacy SVT 5492–5507) ──
+@Component({
+  selector: 'app-svctypes',
+  imports: [FormsModule],
+  template: `
+  <div class="notice"><i class="ti ti-info-circle"></i> <div><strong>Call types</strong> classify service calls (for example Breakdown or Installation). They appear in the Call type list when you log or edit a service call.</div></div>
+  <div class="card"><div class="card-title">{{svtEdit ? 'Edit Call Type' : 'Add Call Type'}}</div>
+    <div class="fr">
+      <div class="fg"><label>Name *</label><input [(ngModel)]="sf.name" maxlength="40" placeholder="e.g. Breakdown"></div>
+      <div class="fg" style="grid-column:span 2"><label>Description</label><input [(ngModel)]="sf.descr" maxlength="100" placeholder="Optional"></div></div>
+    <div class="form-err" [style.display]="svtErr() ? 'block' : 'none'">{{svtErr()}}</div>
+    <div class="btn-grp"><button class="btn btn-p" (click)="save()">{{svtEdit ? 'Save Changes' : 'Add Call Type'}}</button>
+      @if (svtEdit) { <button class="btn btn-s" (click)="reset()">Cancel</button> }</div></div>
+  <div class="card"><div class="card-title">Call Types</div>
+    <table><thead><tr><th>Name</th><th>Description</th><th class="tr">In use</th><th>Status</th><th style="width:230px"></th></tr></thead><tbody>
+      @for (t of types(); track t.name) {
+        <tr><td><strong>{{t.name}}</strong></td><td>{{t.descr || '—'}}</td><td class="tr">{{t.use}}</td>
+          <td><span class="chip" [class.c-ok]="t.active" [class.c-nt]="!t.active">{{t.active ? 'Active' : 'Inactive'}}</span></td>
+          <td><button class="btn btn-s btn-sm" (click)="edit(t)">Edit</button>
+            <button class="btn btn-s btn-sm" (click)="toggle(t)">{{t.active ? 'Deactivate' : 'Activate'}}</button>
+            @if (!t.use) { <button class="btn btn-s btn-sm" (click)="del(t)">Delete</button> }</td></tr>
+      } @empty { <tr><td colspan="5" style="text-align:center;color:var(--txm)">No call types yet.</td></tr> }
+    </tbody></table></div>`,
+})
+export class SvctypesComponent {
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  private cdr = inject(ChangeDetectorRef);
+  types = signal<{ name: string; descr: string; active: boolean; use: number }[]>([]);
+  svtEdit = ''; svtErr = signal('');
+  sf = { name: '', descr: '' };
+
+  constructor() { void this.reload(); }
+  async reload() {
+    this.types.set(await this.api.get<{ name: string; descr: string; active: boolean; use: number }[]>('/call-types'));
+    this.cdr.detectChanges();
+  }
+  edit(t: { name: string; descr: string }) {
+    this.svtEdit = t.name;
+    this.sf = { name: t.name, descr: t.descr || '' };
+    this.cdr.detectChanges();
+  }
+  reset() { this.svtEdit = ''; this.sf = { name: '', descr: '' }; this.svtErr.set(''); this.cdr.detectChanges(); }
+  async save() {
+    this.svtErr.set('');
+    const o = { name: this.sf.name.replace(/\s+/g, ' ').trim(), descr: this.sf.descr.trim() };
+    try {
+      if (this.svtEdit) await this.api.patch('/call-types/' + encodeURIComponent(this.svtEdit), o);
+      else await this.api.post('/call-types', o);
+      this.toast.show('Call type saved.'); this.reset(); await this.reload();
+    } catch (e) { this.svtErr.set((e as ApiError).message); }
+    this.cdr.detectChanges();
+  }
+  async toggle(t: { name: string }) {
+    try { await this.api.post('/call-types/' + encodeURIComponent(t.name) + '/toggle'); await this.reload(); }
+    catch (e) { this.toast.show((e as ApiError).message); }
+    this.cdr.detectChanges();
+  }
+  async del(t: { name: string }) {
+    if (!confirm('Delete ' + t.name + '?')) return;
+    try { await this.api.del('/call-types/' + encodeURIComponent(t.name)); await this.reload(); }
     catch (e) { this.toast.show((e as ApiError).message); }
     this.cdr.detectChanges();
   }
