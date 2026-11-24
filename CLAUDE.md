@@ -37,7 +37,7 @@ apps/web/      @numera/web     — Angular 22 (zoneless, standalone, signals)
 
 ### Batch status
 
-Done: batch 1 (auth, roles, multi-company, settings, COA, GL foundation) on branch `batch-1/auth-gl-foundation`; batch 2 (customers/suppliers/inventory + AR/AP + GL transactions/enquiries + procurement PI/DN) on branch `batch-2/masterdata-ar-ap-gl`. Next: batch 3 (contracts + billing). Full table, deviations, demo credentials and resume pointers: @.claude/rules/progress.md.
+Done: batch 1 (auth, roles, multi-company, settings, COA, GL foundation) on branch `batch-1/auth-gl-foundation`; batch 2 (customers/suppliers/inventory + AR/AP + GL transactions/enquiries + procurement PI/DN) on branch `batch-2/masterdata-ar-ap-gl`; batch 3 (contracts + billing + minimal assets + employees) on branch `batch-3/contracts-billing`. Next: batch 4 (service/work orders + employees depreciation/service). Full table, deviations, demo credentials and resume pointers: @.claude/rules/progress.md.
 
 ## Legacy reference (frozen)
 

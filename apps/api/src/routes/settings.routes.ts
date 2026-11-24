@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { q } from '../db.js';
 import { ApiError, AuthedReq, logEv, requireAuth, requireCan } from '../middleware.js';
 import { encrypt, decrypt } from '../crypto.js';
+import { nextDocRef, withTx } from '../posting.js';
 
 export const settings = Router();
 settings.use(requireAuth);
@@ -121,5 +122,110 @@ settings.post('/email/test', requireCan('settings', 'email'), async (req: Authed
       const err = e as { name?: string; message?: string };
       res.json({ status: 'Failed', detail: err.name === 'AbortError' ? 'The relay did not respond within 20 seconds.' : 'Could not reach the relay (' + (err.message || 'network error') + '). Check the URL, that it is running, and that CORS is allowed.' });
     }
+  } catch (e) { next(e); }
+});
+
+// ── Employees (legacy 4858–4896) ──
+
+const empSchema = z.object({
+  name: z.string(),
+  email: z.string().optional().default(''),
+  phone: z.string().optional().default(''),
+  mgr: z.boolean(),
+  sales: z.boolean(),
+  tech: z.boolean(),
+  active: z.boolean(),
+});
+
+const empCan = requireCan('settings', 'employees');
+
+settings.get('/employees', empCan, async (req: AuthedReq, res, next) => {
+  try {
+    // empUse (4865): contracts + service calls (tech use lands with batch 4)
+    const rows = (await q(
+      `select e.code, e.name, coalesce(e.email,'') as email, coalesce(e.phone,'') as phone,
+              e.is_mgr as mgr, e.is_sales as sales, e.is_tech as tech, e.active,
+              (select count(*)::int from contracts c where c.company_id = e.company_id and (c.mgr_code = e.code or c.sales_code = e.code)) as use
+         from employees e where e.company_id = $1 order by e.name`, [req.companyId])).rows;
+    res.json(rows);
+  } catch (e) { next(e); }
+});
+
+settings.post('/employees', empCan, async (req: AuthedReq, res, next) => {
+  try {
+    const o = empSchema.parse(req.body);
+    const name = o.name.replace(/\s+/g, ' ').trim();
+    await withTx(async (c) => {
+      if (name.length < 2) throw new ApiError(400, "Enter the employee's name.");
+      if (o.email && !EMAIL_RE.test(o.email)) throw new ApiError(400, 'Enter a valid email address.');
+      if (!o.mgr && !o.sales && !o.tech) throw new ApiError(400, 'Tick at least one role.');
+      const dup = (await c.query(`select 1 from employees where company_id = $1 and lower(btrim(name)) = lower($2)`, [req.companyId, name])).rows.length;
+      if (dup) throw new ApiError(400, `An employee called "${name}" already exists.`);
+      const n = (await c.query('select count(*)::int as n from employees where company_id = $1', [req.companyId])).rows[0].n;
+      if (n >= 200) throw new ApiError(400, 'The maximum is 200 employees.');
+      const code = await nextDocRef(c, req.companyId!, 'employees', 'EM', 1, 'code', 4);
+      await c.query(
+        `insert into employees (company_id, code, name, email, phone, is_mgr, is_sales, is_tech, active)
+         values ($1,$2,$3,nullif($4,''),nullif($5,''),$6,$7,$8,$9)`,
+        [req.companyId, code, name, o.email, o.phone, o.mgr, o.sales, o.tech, o.active]);
+      await logEv(req.user!.id, req.user!.username, 'Employee added', name, req.companyId);
+      res.status(201).json({ code });
+    });
+  } catch (e) { next(e); }
+});
+
+settings.patch('/employees/:code', empCan, async (req: AuthedReq, res, next) => {
+  try {
+    const o = empSchema.parse(req.body);
+    const name = o.name.replace(/\s+/g, ' ').trim();
+    await withTx(async (c) => {
+      const base = (await c.query('select code, name, is_mgr, is_sales, is_tech from employees where company_id = $1 and code = $2', [req.companyId, req.params.code])).rows[0];
+      if (!base) throw new ApiError(404, 'Employee not found.');
+      if (name.length < 2) throw new ApiError(400, "Enter the employee's name.");
+      if (o.email && !EMAIL_RE.test(o.email)) throw new ApiError(400, 'Enter a valid email address.');
+      if (!o.mgr && !o.sales && !o.tech) throw new ApiError(400, 'Tick at least one role.');
+      const dup = (await c.query(`select 1 from employees where company_id = $1 and lower(btrim(name)) = lower($2) and code <> $3`, [req.companyId, name, base.code])).rows.length;
+      if (dup) throw new ApiError(400, `An employee called "${name}" already exists.`);
+      // TODO(batch4): service-call technician guard — legacy 4891 first half
+      const lost = (await c.query(
+        `select code, mgr_code, sales_code from contracts where company_id = $1 and (mgr_code = $2 and not $3::bool) or (sales_code = $2 and not $4::bool) limit 1`,
+        [req.companyId, base.code, o.mgr, o.sales])).rows[0];
+      if (lost)
+        throw new ApiError(400, `${base.name} is the ${lost.mgr_code === base.code ? 'Contract Manager' : 'Sales Person'} on ${lost.code}, so that role cannot be removed.`);
+      await c.query(
+        `update employees set name = $3, email = nullif($4,''), phone = nullif($5,''), is_mgr = $6, is_sales = $7, is_tech = $8, active = $9
+          where company_id = $1 and code = $2`,
+        [req.companyId, base.code, name, o.email, o.phone, o.mgr, o.sales, o.tech, o.active]);
+      await logEv(req.user!.id, req.user!.username, 'Employee updated', name, req.companyId);
+      res.json({ ok: true });
+    });
+  } catch (e) { next(e); }
+});
+
+settings.post('/employees/:code/toggle', empCan, async (req: AuthedReq, res, next) => {
+  try {
+    await withTx(async (c) => {
+      const base = (await c.query('select code, name, active from employees where company_id = $1 and code = $2', [req.companyId, req.params.code])).rows[0];
+      if (!base) throw new ApiError(404, 'Employee not found.');
+      await c.query('update employees set active = not active where company_id = $1 and code = $2', [req.companyId, base.code]);
+      await logEv(req.user!.id, req.user!.username, `Employee ${base.active ? 'deactivated' : 'activated'}`, base.name, req.companyId);
+      res.json({ ok: true });
+    });
+  } catch (e) { next(e); }
+});
+
+settings.delete('/employees/:code', empCan, async (req: AuthedReq, res, next) => {
+  try {
+    await withTx(async (c) => {
+      const base = (await c.query(
+        `select e.code, e.name,
+                (select count(*)::int from contracts c where c.company_id = e.company_id and (c.mgr_code = e.code or c.sales_code = e.code)) as use
+           from employees e where e.company_id = $1 and e.code = $2`, [req.companyId, req.params.code])).rows[0];
+      if (!base) throw new ApiError(404, 'Employee not found.');
+      if (base.use) throw new ApiError(409, `${base.name} is used on a contract and cannot be deleted. Deactivate instead.`);
+      await c.query('delete from employees where company_id = $1 and code = $2', [req.companyId, base.code]);
+      await logEv(req.user!.id, req.user!.username, 'Employee deleted', base.name, req.companyId);
+      res.json({ ok: true });
+    });
   } catch (e) { next(e); }
 });

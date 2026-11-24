@@ -74,13 +74,13 @@ export const checkPostingDate = async (c: Client, companyId: string, iso: string
 };
 
 // Count-based numbering, port of siRef (5415) / siNextRef (5118):
-// seq = offset + row count, advancing on collision.
+// seq = offset + row count, advancing on collision. pad: legacy nextId width (CON/AST/EM/ESC 4, CINV 5).
 export const nextDocRef = async (
-  c: Client, companyId: string, table: string, prefix: string, offset: number, idCol: 'id' | 'code' | 'ref' = 'id',
+  c: Client, companyId: string, table: string, prefix: string, offset: number, idCol: 'id' | 'code' | 'ref' = 'id', pad = 3,
 ): Promise<string> => {
   let n = (await c.query(`select count(*)::int as n from ${table} where company_id = $1`, [companyId])).rows[0].n;
   for (;;) {
-    const ref = `${prefix}-${String(offset + n).padStart(3, '0')}`;
+    const ref = `${prefix}-${String(offset + n).padStart(pad, '0')}`;
     const dup = (await c.query(`select 1 as x from ${table} where company_id = $1 and ${idCol} = $2`, [companyId, ref])).rows.length;
     if (!dup) return ref;
     n++;

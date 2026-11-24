@@ -60,9 +60,10 @@ export class LoginComponent {
     this.busy = true;
     this.err.set(''); this.info.set('');
     try {
-      const r = await this.api.post<{ user: UserInfo; companies: CompanyInfo[] }>('/auth/login', { id: this.id, pw: this.pass });
+      const r = await this.api.post<{ user: UserInfo; companies: CompanyInfo[]; access?: Record<string, string> }>('/auth/login', { id: this.id, pw: this.pass });
       this.auth.user.set(r.user);
       this.auth.companies.set(r.companies);
+      if (r.access) this.auth.access.set(r.access);
       if (r.user.must_change) {
         this.auth.companies.set([]);
         this.router.navigate(['/change-password']);

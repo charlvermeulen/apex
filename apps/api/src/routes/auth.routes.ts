@@ -69,7 +69,7 @@ auth.post('/login', async (req, res, next) => {
     await q('insert into sessions (id, user_id) values ($1, $2)', [sid, u.id]);
     startSession(res, sid);
     await logEv(u.id, u.username, 'Signed in', '');
-    res.json({ user: publicUser(u), companies: await companiesFor(u), must_change: u.must_change });
+    res.json({ user: publicUser(u), companies: await companiesFor(u), must_change: u.must_change, access: effAccess(u) });
   } catch (e) { next(e); }
 });
 

@@ -35,10 +35,10 @@ export class SettingsComponent {
     { key: 'roles', sec: 'roles', path: '/settings/roles', ready: true },
     { key: 'email', sec: 'email', path: '/settings/email', ready: true },
     { key: 'log', sec: 'log', path: '/settings/log', ready: true },
-    { key: 'ctypes', sec: 'ctypes', path: '', ready: false },
+    { key: 'ctypes', sec: 'ctypes', path: '/settings/ctypes', ready: true },
     { key: 'sitypes', sec: 'sitypes', path: '/settings/sitypes', ready: true },
     { key: 'svctypes', sec: 'svctypes', path: '', ready: false },
-    { key: 'employees', sec: 'employees', path: '', ready: false },
+    { key: 'employees', sec: 'employees', path: '/settings/employees', ready: true },
   ];
   allowed = () => this.tabs.filter((t) => this.auth.canSec()('settings', t.sec));
 }
@@ -781,5 +781,217 @@ export class SitypesComponent {
   async deactivate(t: { code: string }) {
     try { await this.api.del('/sitypes/' + t.code); await this.reload(); this.toast.show('Item type deactivated.'); }
     catch (e) { this.toast.show((e as ApiError).message); }
+  }
+}
+
+// ── Contract Types: Item Fees + Item Meters (settings ▸ ctypes; legacy ct-page 1503–1514) ──
+interface CType { name: string; asset: 'required' | 'optional'; funder: boolean; ever: boolean; rev: string; cos: string; active: boolean; uses: number }
+interface MType { name: string; descr: string; rev: string; cos: string; active: boolean; uses: number }
+
+@Component({
+  selector: 'app-settings-ctypes',
+  imports: [FormsModule],
+  template: `
+  <div class="notice"><i class="ti ti-info-circle"></i> <div><strong>Item Fees</strong> are the billing types you can choose for contract items (for example Bank Rental); <strong>Item Meters</strong> are the meter types you can add to printing machines (for example Mono). Add your own below. A type that is already used on a contract keeps its name and settings — you can only deactivate it, which hides it from new items.</div></div>
+  <div class="card" style="margin-bottom:16px"><div class="card-title">{{ctEdit ? 'Edit Item Fee Type' : 'Add Item Fee Type'}}</div>
+    <div class="fr3">
+      <div class="fg"><label>Name *</label><input [(ngModel)]="cf.name" maxlength="40" placeholder="e.g. Operating Lease"></div>
+      <div class="fg"><label>Asset</label><select [(ngModel)]="cf.asset"><option value="required">Required — item must have an asset</option><option value="optional">Optional</option></select></div>
+      <div class="fg"><label>&nbsp;</label>
+        <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" [(ngModel)]="cf.funder" style="width:auto"> Ask for funder / bank</label>
+        <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" [(ngModel)]="cf.ever" style="width:auto"> Evergreen (continues after the term)</label></div></div>
+    <div class="fr">
+      <div class="fg"><label>GL Revenue account *</label><select [(ngModel)]="cf.rev"><option value="">— Choose —</option>@for (a of revAccs(); track a.code) { <option [value]="a.code">{{a.code}} — {{a.name}}</option> }</select></div>
+      <div class="fg"><label>GL Cost of Sales account *</label><select [(ngModel)]="cf.cos"><option value="">— Choose —</option>@for (a of cosAccs(); track a.code) { <option [value]="a.code">{{a.code}} — {{a.name}}</option> }</select></div></div>
+    <div class="form-err" [style.display]="ctErr() ? 'block' : 'none'">{{ctErr()}}</div>
+    <div class="btn-grp"><button class="btn btn-p" (click)="saveCt()" [disabled]="busy()">{{ctEdit ? 'Save Changes' : 'Add Type'}}</button>
+      @if (ctEdit) { <button class="btn btn-s" (click)="resetCt()">Cancel edit</button> }</div></div>
+  <div class="card"><div class="card-title">Item Fees</div>
+    <table><thead><tr><th>Name</th><th>Asset</th><th>Funder</th><th>Term</th><th>Revenue a/c</th><th>COS a/c</th><th class="tr">In use</th><th>Status</th><th style="width:230px"></th></tr></thead><tbody>
+      @for (t of ctypes(); track t.name) {
+        <tr><td><strong>{{t.name}}</strong></td>
+          <td>{{t.asset === 'required' ? 'Required' : 'Optional'}}</td>
+          <td>{{t.funder ? 'Yes' : 'No'}}</td>
+          <td>{{t.ever ? 'Evergreen (min term)' : 'Fixed term'}}</td>
+          <td>{{accLbl(t.rev)}}</td><td>{{accLbl(t.cos)}}</td><td class="tr">{{t.uses}}</td>
+          <td><span class="chip" [class.c-ok]="t.active" [class.c-nt]="!t.active">{{t.active ? 'Active' : 'Inactive'}}</span></td>
+          <td><button class="btn btn-s btn-sm" (click)="editCt(t)">Edit</button>
+            <button class="btn btn-s btn-sm" (click)="toggleCt(t)">{{t.active ? 'Deactivate' : 'Activate'}}</button>
+            @if (!t.uses) { <button class="btn btn-s btn-sm" (click)="delCt(t)">Delete</button> }</td></tr>
+      } @empty { <tr><td colspan="9" style="text-align:center;color:var(--txm)">No item fee types yet.</td></tr> }
+    </tbody></table></div>
+  <div class="card" style="margin-top:16px"><div class="card-title">Item Meters <span style="font-size:12px;font-weight:400;color:var(--txm)">meter types for printing machines</span></div>
+    <div class="fr3"><div class="fg"><label>{{mtEdit ? 'Edit meter type' : 'Add meter type'}}</label><input [(ngModel)]="mf.name" maxlength="30" placeholder="e.g. A3 Colour"></div>
+      <div class="fg"><label>GL Revenue account *</label><select [(ngModel)]="mf.rev"><option value="">— Choose —</option>@for (a of revAccs(); track a.code) { <option [value]="a.code">{{a.code}} — {{a.name}}</option> }</select></div>
+      <div class="fg"><label>GL Cost of Sales account *</label><select [(ngModel)]="mf.cos"><option value="">— Choose —</option>@for (a of cosAccs(); track a.code) { <option [value]="a.code">{{a.code}} — {{a.name}}</option> }</select></div></div>
+    <div class="fr"><div class="fg"><label>Description</label><input [(ngModel)]="mf.descr" maxlength="100" placeholder="Optional, e.g. A4 black &amp; white pages"></div>
+      <div class="fg"><label>&nbsp;</label><button class="btn btn-p" (click)="saveMt()" [disabled]="busy()">{{mtEdit ? 'Save Changes' : 'Add Meter Type'}}</button>
+        @if (mtEdit) { <button class="btn btn-s" (click)="resetMt()">Cancel edit</button> }</div></div>
+    <div class="form-err" [style.display]="mtErr() ? 'block' : 'none'">{{mtErr()}}</div>
+    <table><thead><tr><th>Meter type</th><th>Description</th><th>Revenue a/c</th><th>COS a/c</th><th class="tr">In use</th><th>Status</th><th style="width:230px"></th></tr></thead><tbody>
+      @for (t of mtypes(); track t.name) {
+        <tr><td><strong>{{t.name}}</strong></td><td>{{t.descr || '—'}}</td><td>{{accLbl(t.rev)}}</td><td>{{accLbl(t.cos)}}</td><td class="tr">{{t.uses}}</td>
+          <td><span class="chip" [class.c-ok]="t.active" [class.c-nt]="!t.active">{{t.active ? 'Active' : 'Inactive'}}</span></td>
+          <td><button class="btn btn-s btn-sm" (click)="editMt(t)">Edit</button>
+            <button class="btn btn-s btn-sm" (click)="toggleMt(t)">{{t.active ? 'Deactivate' : 'Activate'}}</button>
+            @if (!t.uses) { <button class="btn btn-s btn-sm" (click)="delMt(t)">Delete</button> }</td></tr>
+      } @empty { <tr><td colspan="7" style="text-align:center;color:var(--txm)">No meter types yet.</td></tr> }
+    </tbody></table></div>`,
+})
+export class CtypesComponent {
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  private cdr = inject(ChangeDetectorRef);
+  ctypes = signal<CType[]>([]);
+  mtypes = signal<MType[]>([]);
+  accs = signal<{ code: string; name: string; type: string; active: boolean }[]>([]);
+  busy = signal(false); ctEdit = ''; mtEdit = '';
+  ctErr = signal(''); mtErr = signal('');
+  cf = { name: '', asset: 'required', funder: false, ever: false, rev: '', cos: '' };
+  mf = { name: '', descr: '', rev: '', cos: '' };
+
+  constructor() { void this.reload(); }
+  async reload() {
+    const [ct, mt, a] = await Promise.all([
+      this.api.get<CType[]>('/ctypes'), this.api.get<MType[]>('/mtypes'),
+      this.api.get<{ code: string; name: string; type: string; active: boolean }[]>('/accounts'),
+    ]);
+    this.ctypes.set(ct); this.mtypes.set(mt); this.accs.set(a); this.cdr.detectChanges();
+  }
+  accLbl = (code: string) => { const a = this.accs().find((x) => x.code === code); return a ? code + ' — ' + a.name : code; };
+  revAccs = () => this.accs().filter((a) => a.active && (a.type === 'Income' || a.type === 'Other Income'));
+  cosAccs = () => this.accs().filter((a) => a.active && (a.type === 'Expense' || a.type === 'Other Expense'));
+  editCt(t: CType) {
+    this.ctEdit = t.name;
+    this.cf = { name: t.name, asset: t.asset, funder: t.funder, ever: t.ever, rev: t.rev, cos: t.cos };
+    this.ctErr.set(t.uses ? 'This type is used on a contract. Only the GL accounts can be changed.' : '');
+    this.cdr.detectChanges();
+  }
+  resetCt() { this.ctEdit = ''; this.ctErr.set(''); this.cf = { name: '', asset: 'required', funder: false, ever: false, rev: '', cos: '' }; this.cdr.detectChanges(); }
+  async saveCt() {
+    this.ctErr.set(''); this.busy.set(true);
+    const o = { name: this.cf.name.replace(/\s+/g, ' ').trim(), asset: this.cf.asset, funder: this.cf.funder, ever: this.cf.ever, rev: this.cf.rev, cos: this.cf.cos };
+    try {
+      if (this.ctEdit) await this.api.patch('/ctypes/' + encodeURIComponent(this.ctEdit), o);
+      else await this.api.post('/ctypes', o);
+      this.toast.show('Contract type saved.'); this.resetCt(); await this.reload();
+    } catch (e) { this.ctErr.set((e as ApiError).message); }
+    finally { this.busy.set(false); this.cdr.detectChanges(); }
+  }
+  async toggleCt(t: CType) {
+    try { await this.api.post('/ctypes/' + encodeURIComponent(t.name) + '/toggle'); await this.reload(); }
+    catch (e) { this.toast.show((e as ApiError).message); }
+    this.cdr.detectChanges();
+  }
+  async delCt(t: CType) {
+    if (!confirm('Delete "' + t.name + '"?')) return;
+    try { await this.api.del('/ctypes/' + encodeURIComponent(t.name)); await this.reload(); }
+    catch (e) { this.toast.show((e as ApiError).message); }
+    this.cdr.detectChanges();
+  }
+  editMt(t: MType) {
+    this.mtEdit = t.name;
+    this.mf = { name: t.name, descr: t.descr || '', rev: t.rev, cos: t.cos };
+    this.mtErr.set(t.uses ? 'This meter type is used on ' + t.uses + ' meter(s). Renaming it updates those meters; invoices already raised are not changed.' : '');
+    this.cdr.detectChanges();
+  }
+  resetMt() { this.mtEdit = ''; this.mtErr.set(''); this.mf = { name: '', descr: '', rev: '', cos: '' }; this.cdr.detectChanges(); }
+  async saveMt() {
+    this.mtErr.set(''); this.busy.set(true);
+    const o = { name: this.mf.name.replace(/\s+/g, ' ').trim(), descr: this.mf.descr.trim(), rev: this.mf.rev, cos: this.mf.cos };
+    try {
+      if (this.mtEdit) await this.api.patch('/mtypes/' + encodeURIComponent(this.mtEdit), o);
+      else await this.api.post('/mtypes', o);
+      this.toast.show('Meter type saved.'); this.resetMt(); await this.reload();
+    } catch (e) { this.mtErr.set((e as ApiError).message); }
+    finally { this.busy.set(false); this.cdr.detectChanges(); }
+  }
+  async toggleMt(t: MType) {
+    try { await this.api.post('/mtypes/' + encodeURIComponent(t.name) + '/toggle'); await this.reload(); }
+    catch (e) { this.toast.show((e as ApiError).message); }
+    this.cdr.detectChanges();
+  }
+  async delMt(t: MType) {
+    if (!confirm('Delete "' + t.name + '"?')) return;
+    try { await this.api.del('/mtypes/' + encodeURIComponent(t.name)); await this.reload(); }
+    catch (e) { this.toast.show((e as ApiError).message); }
+    this.cdr.detectChanges();
+  }
+}
+
+// ── Employees (settings ▸ employees; legacy 4877–4896 + page 1489 markup) ──
+interface Emp { code: string; name: string; email: string; phone: string; mgr: boolean; sales: boolean; tech: boolean; active: boolean; use: number }
+
+@Component({
+  selector: 'app-settings-employees',
+  imports: [FormsModule],
+  template: `
+  <div class="card" style="margin-bottom:16px"><div class="card-title">{{empEdit ? 'Edit Employee' : 'Add Employee'}}</div>
+    <div class="fr">
+      <div class="fg"><label>Name *</label><input [(ngModel)]="f.name" maxlength="60"></div>
+      <div class="fg"><label>Email</label><input [(ngModel)]="f.email" type="email"></div>
+      <div class="fg"><label>Phone</label><input [(ngModel)]="f.phone" maxlength="30"></div></div>
+    <div class="fr">
+      <div class="fg"><label>Roles</label>
+        <div style="display:flex;gap:16px;align-items:flex-end"><label style="font-weight:400"><input type="checkbox" [(ngModel)]="f.mgr" style="width:auto"> Contract Manager</label>
+          <label style="font-weight:400"><input type="checkbox" [(ngModel)]="f.sales" style="width:auto"> Sales Person</label>
+          <label style="font-weight:400"><input type="checkbox" [(ngModel)]="f.tech" style="width:auto"> Technician</label></div></div>
+      <div class="fg" style="max-width:200px"><label>Status</label><select [(ngModel)]="f.active"><option value="1">Active</option><option value="0">Inactive</option></select></div></div>
+    <div class="form-err" [style.display]="err() ? 'block' : 'none'">{{err()}}</div>
+    <div class="btn-grp"><button class="btn btn-p" (click)="save()" [disabled]="busy()"><i class="ti ti-device-floppy"></i> {{empEdit ? 'Save Changes' : 'Add Employee'}}</button>
+      @if (empEdit) { <button class="btn btn-s" (click)="reset()">Cancel edit</button> }</div></div>
+  <div class="card"><div class="card-title">Employees</div>
+    <table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Roles</th><th class="tr">Used</th><th>Status</th><th style="width:260px"></th></tr></thead><tbody>
+      @for (e of list(); track e.code) {
+        <tr><td><strong>{{e.name}}</strong></td><td>{{e.email || '—'}}</td><td>{{e.phone || '—'}}</td>
+          <td>@for (r of roles(e); track r) { <span class="chip c-nt">{{r}}</span> }</td>
+          <td class="tr">{{e.use}}</td>
+          <td><span class="chip" [class.c-ok]="e.active" [class.c-nt]="!e.active">{{e.active ? 'Active' : 'Inactive'}}</span></td>
+          <td><button class="btn btn-s btn-sm" (click)="edit(e)">Edit</button>
+            <button class="btn btn-s btn-sm" (click)="toggle(e)">{{e.active ? 'Deactivate' : 'Activate'}}</button>
+            @if (!e.use) { <button class="btn btn-s btn-sm" (click)="del(e)">Delete</button> }</td></tr>
+      } @empty { <tr><td colspan="7" style="text-align:center;color:var(--txm)">No employees yet. Add the first one above.</td></tr> }
+    </tbody></table></div>`,
+})
+export class EmployeesComponent {
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  private cdr = inject(ChangeDetectorRef);
+  list = signal<Emp[]>([]);
+  empEdit = ''; busy = signal(false); err = signal('');
+  f = { name: '', email: '', phone: '', mgr: false, sales: false, tech: false, active: '1' };
+
+  constructor() { void this.reload(); }
+  async reload() {
+    this.list.set(await this.api.get<Emp[]>('/settings/employees'));
+    this.cdr.detectChanges();
+  }
+  roles = (e: Emp) => [e.mgr ? 'Contract Manager' : '', e.sales ? 'Sales Person' : '', e.tech ? 'Technician' : ''].filter(Boolean);
+  edit(e: Emp) {
+    this.empEdit = e.code;
+    this.f = { name: e.name, email: e.email || '', phone: e.phone || '', mgr: e.mgr, sales: e.sales, tech: e.tech, active: e.active ? '1' : '0' };
+    this.cdr.detectChanges();
+  }
+  reset() { this.empEdit = ''; this.err.set(''); this.f = { name: '', email: '', phone: '', mgr: false, sales: false, tech: false, active: '1' }; this.cdr.detectChanges(); }
+  async save() {
+    this.err.set(''); this.busy.set(true);
+    try {
+      const o = { name: this.f.name.replace(/\s+/g, ' ').trim(), email: this.f.email.trim(), phone: this.f.phone.trim(), mgr: this.f.mgr, sales: this.f.sales, tech: this.f.tech, active: this.f.active === '1' };
+      if (this.empEdit) await this.api.patch('/settings/employees/' + this.empEdit, o);
+      else await this.api.post('/settings/employees', o);
+      this.toast.show('Employee saved.'); this.reset(); await this.reload();
+    } catch (e) { this.err.set((e as ApiError).message); }
+    finally { this.busy.set(false); this.cdr.detectChanges(); }
+  }
+  async toggle(emp: Emp) {
+    try { await this.api.post('/settings/employees/' + emp.code + '/toggle'); await this.reload(); this.toast.show(emp.active ? emp.name + ' deactivated.' : emp.name + ' activated.'); }
+    catch (errr) { this.toast.show((errr as ApiError).message); }
+    this.cdr.detectChanges();
+  }
+  async del(e: Emp) {
+    if (!confirm('Delete ' + e.name + '?')) return;
+    try { await this.api.del('/settings/employees/' + e.code); this.toast.show(e.name + ' deleted.'); await this.reload(); }
+    catch (errr) { this.toast.show((errr as ApiError).message); }
+    this.cdr.detectChanges();
   }
 }

@@ -14,6 +14,9 @@ import { sales } from './routes/sales.routes.js';
 import { purchases } from './routes/purchases.routes.js';
 import { inventory } from './routes/inventory.routes.js';
 import { gl } from './routes/gl.routes.js';
+import { assets } from './routes/assets.routes.js';
+import { contracts } from './routes/contracts.routes.js';
+import { billing } from './routes/billing.routes.js';
 import { ApiError, AuthedReq } from './middleware.js';
 
 const app = express();
@@ -33,6 +36,9 @@ app.use('/api', sales);
 app.use('/api', purchases);
 app.use('/api', inventory);
 app.use('/api/gl', gl);
+app.use('/api', assets);
+app.use('/api', contracts);
+app.use('/api', billing);
 
 // errors: {error} shape, 500 never leaks SQL
 app.use((err: unknown, _req: AuthedReq, res: express.Response, _next: express.NextFunction) => {
@@ -40,7 +46,7 @@ app.use((err: unknown, _req: AuthedReq, res: express.Response, _next: express.Ne
   if (err instanceof ZodError) return res.status(400).json({ error: 'The request could not be understood.' });
   if (err instanceof pg.DatabaseError && err.code) {
     if (err.code === '23505' || err.code === '23502') return res.status(409).json({ error: 'That value conflicts with something already saved.' });
-    if (err.code === '23503') return res.status(409).json({ error: 'That record is still linked somewhere and cannot be changed or removed.' });
+    if (err.code === '23503') { console.error(23503, err.detail ?? err.message, err.constraint); return res.status(409).json({ error: 'That record is still linked somewhere and cannot be changed or removed.' }); }
     console.error(err.code, err.detail ?? err.message);
     return res.status(500).json({ error: 'Something went wrong on the server.' });
   }

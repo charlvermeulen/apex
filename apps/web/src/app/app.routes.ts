@@ -15,9 +15,13 @@ import { CustSiComponent, CustCnComponent, CustRcptComponent, CustJnlComponent, 
 import { SupListComponent, SupAddComponent, SupJnlComponent, SupEnqComponent } from './pages/suppliers/suppliers.pages';
 import { ProcurementComponent, PiComponent, DnComponent } from './pages/procurement/procurement.pages';
 import { InvItemsComponent, InvCatsComponent, InvItemAddComponent, InvCardComponent, InvValComponent } from './pages/inventory/inventory.pages';
+import { AssetsRegisterComponent, AssetFormComponent } from './pages/assets/assets.pages';
+import { ContractsListComponent, ContractFormComponent } from './pages/contracts/contracts.pages';
+import { CbRunComponent, CbMetersComponent, CbPeriodsComponent, CbEscComponent, CbHistComponent, CustCinvComponent } from './pages/billing/billing.pages';
 import {
   SettingsComponent, CompanyTaxComponent, YearsComponent, CompaniesTabComponent,
   UsersComponent, RolesComponent, EmailComponent, LogComponent, SitypesComponent,
+  CtypesComponent, EmployeesComponent,
 } from './pages/settings/settings.pages';
 
 // Per-module tab maps: {label, child path suffix, sec, ready?}
@@ -30,6 +34,7 @@ const custTabs: ModTab[] = [
   { label: 'Customer Journals', path: '/customers/jnl', sec: 'trans', icon: 'ti-book' },
   { label: 'Account Enquiry', path: '/customers/enq', sec: 'enq', icon: 'ti-zoom-money' },
   { label: 'Aged Debtors', path: '/customers/aged', sec: 'enq', icon: 'ti-clock-hour-4' },
+  { label: 'Contract Invoices', path: '/customers/cinvc', sec: 'trans', icon: 'ti-file-certificate' },
 ];
 const supTabs: ModTab[] = [
   { label: 'Supplier List', path: '/suppliers/list', sec: 'maint', icon: 'ti-truck' },
@@ -52,6 +57,22 @@ const glTabs: ModTab[] = [
   { label: 'Journal Batches', path: '/gl/jbatch', sec: 'trans', icon: 'ti-books' },
   { label: 'Account Enquiry', path: '/gl/enq', sec: 'enq', icon: 'ti-zoom-money' },
   { label: 'Journal Enquiry', path: '/gl/jenq', sec: 'enq', icon: 'ti-list' },
+];
+const assetTabs: ModTab[] = [
+  { label: 'Asset Register', path: '/assets/register', sec: 'maint', icon: 'ti-box-several' },
+  { label: 'Maintenance & Service', path: '/assets/svc', sec: 'maint', icon: 'ti-tool', ready: false },
+  { label: 'Depreciation', path: '/assets/dep', sec: 'maint', icon: 'ti-arrow-down-right', ready: false },
+];
+const conTabs: ModTab[] = [
+  { label: 'Contracts', path: '/contracts/list', sec: 'maint', icon: 'ti-file-text' },
+  { label: 'Add Contract', path: '/contracts/add', sec: 'maint', icon: 'ti-plus' },
+];
+const billTabs: ModTab[] = [
+  { label: 'Billing Run', path: '/cbilling/run', sec: 'trans', icon: 'ti-receipt' },
+  { label: 'Meter Usage', path: '/cbilling/meters', sec: 'trans', icon: 'ti-gauge' },
+  { label: 'Billing Periods', path: '/cbilling/periods', sec: 'trans', icon: 'ti-calendar' },
+  { label: 'Escalation', path: '/cbilling/escalate', sec: 'trans', icon: 'ti-trending-up' },
+  { label: 'Billing History', path: '/cbilling/hist', sec: 'enq', icon: 'ti-history' },
 ];
 
 export const routes: Routes = [
@@ -92,6 +113,7 @@ export const routes: Routes = [
           { path: 'jnl', component: CustJnlComponent, data: { mod: 'customers', sec: 'trans' }, canActivate: [canSecGuard] },
           { path: 'enq', component: CustEnqComponent, data: { mod: 'customers', sec: 'enq' }, canActivate: [canSecGuard] },
           { path: 'aged', component: AgedComponent, data: { mod: 'customers', sec: 'enq', kind: 'cust' }, canActivate: [canSecGuard] },
+          { path: 'cinvc', component: CustCinvComponent, data: { mod: 'customers', sec: 'trans' }, canActivate: [canSecGuard] },
         ],
       },
       {
@@ -130,6 +152,39 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'assets', component: ModTabsComponent,
+        data: { mod: 'assets', title: 'Assets / Equipment', sub: 'Fixed asset register, servicing and depreciation', tabs: assetTabs },
+        canActivate: [canSecGuard],
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'register' },
+          { path: 'register', component: AssetsRegisterComponent, data: { mod: 'assets', sec: 'maint' }, canActivate: [canSecGuard] },
+          { path: 'add', component: AssetFormComponent, data: { mod: 'assets', sec: 'maint' }, canActivate: [canSecGuard] },
+        ],
+      },
+      {
+        path: 'contracts', component: ModTabsComponent,
+        data: { mod: 'contracts', title: 'Contract Management', sub: 'Customer contracts, terms and renewals', tabs: conTabs },
+        canActivate: [canSecGuard],
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'list' },
+          { path: 'list', component: ContractsListComponent, data: { mod: 'contracts', sec: 'maint' }, canActivate: [canSecGuard] },
+          { path: 'add', component: ContractFormComponent, data: { mod: 'contracts', sec: 'maint' }, canActivate: [canSecGuard] },
+        ],
+      },
+      {
+        path: 'cbilling', component: ModTabsComponent,
+        data: { mod: 'cbilling', title: 'Contract Billing', sub: 'Recurring invoices raised from active contracts', tabs: billTabs },
+        canActivate: [canSecGuard],
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'run' },
+          { path: 'run', component: CbRunComponent, data: { mod: 'cbilling', sec: 'trans' }, canActivate: [canSecGuard] },
+          { path: 'meters', component: CbMetersComponent, data: { mod: 'cbilling', sec: 'trans' }, canActivate: [canSecGuard] },
+          { path: 'periods', component: CbPeriodsComponent, data: { mod: 'cbilling', sec: 'trans' }, canActivate: [canSecGuard] },
+          { path: 'escalate', component: CbEscComponent, data: { mod: 'cbilling', sec: 'trans' }, canActivate: [canSecGuard] },
+          { path: 'hist', component: CbHistComponent, data: { mod: 'cbilling', sec: 'enq' }, canActivate: [canSecGuard] },
+        ],
+      },
+      {
         path: 'settings', component: SettingsComponent, data: { mod: 'settings' }, canActivate: [canSecGuard],
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'company' },
@@ -141,6 +196,8 @@ export const routes: Routes = [
           { path: 'email', component: EmailComponent, data: { mod: 'settings', sec: 'email' }, canActivate: [canSecGuard] },
           { path: 'log', component: LogComponent, data: { mod: 'settings', sec: 'log' }, canActivate: [canSecGuard] },
           { path: 'sitypes', component: SitypesComponent, data: { mod: 'settings', sec: 'sitypes' }, canActivate: [canSecGuard] },
+          { path: 'ctypes', component: CtypesComponent, data: { mod: 'settings', sec: 'ctypes' }, canActivate: [canSecGuard] },
+          { path: 'employees', component: EmployeesComponent, data: { mod: 'settings', sec: 'employees' }, canActivate: [canSecGuard] },
         ],
       },
     ],

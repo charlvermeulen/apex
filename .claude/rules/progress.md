@@ -17,12 +17,43 @@ Plan of record: `C:\Users\James\.claude\plans\start-converting-the-app-robust-le
 |---|---|---|
 | 1 | auth + roles + multi-company + settings + COA + GL foundation | âœ… done, commit `5d6978e` on `batch-1/auth-gl-foundation` (2026-11-10) |
 | 2 | customers/suppliers/inventory + AR/AP + GL transactions & enquiries (glJournalBase â†’ posting-time journal inserts) | âœ… done on `batch-2/masterdata-ar-ap-gl` (2026-11-11) |
-| 3 | contracts + billing (+Employees stays 4) | |
+| 3 | contracts + billing (+Employees, minimal assets) | âœ… done on `batch-3/contracts-billing` (2026-11-24) |
 | 4 | service/work orders (+ employees, service types) | |
 | 5 | procurement/buybacks/conversions (glBB/glCV) | |
 | 6 | VAT (vat_periods table + assertPostingDate port of checkPostingDate 2791) | |
 | 7 | reports/budgets/exports + closing journal + FY totals recompute | |
 | after | statements/outbox/dashboard KPIs, PAYE, tax calendar, localStorage importer option | deferred |
+
+## Batch 3 — done (2026-11-24)
+
+Branch `batch-3/contracts-billing`, committed. Migration `008_contracts.sql`. Scope: contracts + billing + minimal assets (register-only) + employees (batch 4 gets depreciation/service).
+
+### Gates — tsc api + web green; ng build 611.87 kB initial
+
+### Bug found & fixed during final validation
+- **SPA login lost access map**: `POST /auth/login` returned only `{user, companies}`, so the login component never populated `auth.access` — `authGuard` short-circuits when `user()` is set, so `/auth/me` was never called, leaving `access = {}`. Truthy-but-empty override made `accOf` return an empty access map → sidebar items disabled and `canSecGuard` denied everything until a full page reload (this is also the real cause of last session's "company-picker tile didn't fire" note — that flow needs a 2-company user, which the DB no longer has). Fix: login response now includes `access: effAccess(u)` and the login component sets it.
+
+### Validated (Playwright, direct scripts — Playwright MCP plugin failed to connect this session)
+- **thabo (bookkeeper) per-role gating** (15/15 PASS): login (seed `Thabo@2025` → change-password → `Mokoena@2026`, must_change cleared — DB had been reset), admin tile click on /company-picker (forced URL — single-company DB, tiles render late, click auto-waits and lands on /dashboard), nav shows Contract Billing/Assets/Contract Management enabled with correct hrefs, `/cbilling/run` + `/customers/cinvc` open, `/settings/ctypes|employees` deny-redirect to /dashboard with verbatim toast "You do not have access to this area.", POST `/api/ctypes` + `/api/settings/employees` → 403, GET `/api/billing/periods` → 200. (Contracts endpoints mount at `/api`, not `/api/contracts` — `/api/ctypes`, `/api/contracts`, `/api/escalations`.)
+- **Invoice modal Print/Download** (`InvModalComponent`): Download → `Invoice_CINV-00004.html`; Print → popup contains the invoice doc.
+
+### Demo DB state
+Seed artifacts (batch 2) + FY 2026/27 (2026-04-01–2027-03-31 open), AST-0007 (Dell Precision, 2025-06-15), AST-0006 Disposed (2026-11-11), CON-0005 (Woolworths, Service 1 500 ×24, start 2026-11-11), CINV-00001..00004, meter readings CON-0004 M1/M2 billed in 2025-03, ESC-0001. Period 2025-03 **closed**, 2025-04 open (blocked until readings captured). Passwords: admin `N@mera2026!`, nomsa `Numera@2026nx`, thabo `Mokoena@2026`, pieter `DeWet@2026n`.
+
+### Validated with Playwright (admin on Demo Company unless noted)
+- **Billing periods** `/cbilling/periods`: Close 2025-03 (verbatim confirm + toast "Period 2025-03 closed.", closedAt/closedBy rendered), Reopen (dialog "Readings and invoices in it can then be added to again."), re-close, blockers — Close 2025-04 → 400 verbatim blocker list ("CON-0004 AST-0004 Mono: no closing reading" ×2).
+- **Escalation** `/cbilling/escalate`: empty list was Neon-latency mis-read (list fine); validation order verbatim ('Enter the increase — it must be greater than zero.' → 'A percentage increase cannot exceed 100%.' → 'Enter the date the escalation takes effect.' → 'Select at least one contract item or meter to escalate.'); applied ESC-0001 5% eff 2026-01-01 → line 6 500 → **6 825** displayed, Last escalated 1 Jan 2026, history row "ESC-0001 | 11 Nov 2026 | 1 Jan 2026 | 5% | … | admin"; already-escalated check verbatim ("CON-0001 · … was already escalated from 1 Jan 2026. Choose a later effective date.").
+- **Settings ▸ Ctypes** `/settings/ctypes`: empty form → "Choose a GL revenue account." (after schema fix); add "Maintenance Plan" (toast "Contract type saved."), delete unused with confirm `Delete "Maintenance Plan"?`, in-use meter delete → `"Mono" is used on a meter and cannot be deleted. Deactivate it instead.` (400), deactivate/activate Mono round-trip (Active↔Inactive chips).
+- **Settings ▸ Employees** `/settings/employees` (after path fix): seeded EM-0001..0003 listed w/ roles + use counts; empty add → "Enter the employee's name."; added EM-0004 Sipho Ndlovu, edit (roles toggled), dup + role-removal guards verbatim ("Tick at least one role.", "Naledi Khumalo is the Contract Manager on CON-0003, so that role cannot be removed."), in-use delete 409 ("Pieter Botha is used on a contract and cannot be deleted. Deactivate instead."), deactivate/re-activate Lerato, delete Sipho (confirm `Delete Sipho Ndlovu?`) — DB back to seed state.
+- **Customers ▸ Contract Invoices** `/customers/cinvc` (after route fix): lists CINV-00001..00004 w/ line detail, View modal (due 30/04/2025, payment details, VAT Act §20 footer), Shoprite filter narrows to 2.
+- **Per-role gating**: pieter (viewer, `Pieter@2025` seed, must_change cleared via change-password → now `DeWet@2026n`): /settings/employees → /dashboard redirect, /customers/cinvc → /dashboard, POST /api/settings/employees 403 "You do not have access to this area."; **/cbilling/run LOADS** — verbatim legacy (`viewer: { cbilling: '*' }` grants trans; confirmed canSec 2541).
+
+### Batch 3 deviations / notes (for the write-up)
+- Legacy alert() replaced by toast for dispose/date-guard errors (same verbatim strings).
+- Meter invoice description lacks legacy thousand separators ("12500 → 13050").
+- ctypes/mtypes/employees Delete-for-unused + guard strings are new (legacy list had no delete; legacy toggle-only for in-use).
+- Viewer `cbilling:'*'` means viewer CAN open Billing Run / post (legacy quirk, ported verbatim; don't "fix" without flagging).
+- Settings sitypes/svctypes from batch 1; ctype/mtype 'Description' column empty for seeds (descr nullable).
 
 ## Batch 2 — done (2026-11-11)
 

@@ -23,3 +23,15 @@ export const todayIso = (): string => {
   const d = new Date(), p = (x: number) => String(x).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
+
+// legacy fmtD (2165): y truthy → '5 Mar 2025', else '05 Mar'
+export const fmtD = (iso: string, y?: boolean | number): string => {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', y ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: '2-digit', month: 'short' });
+};
+// '05/03/2025' — invoice print dates (fmtDMY)
+export const fmtDMY = (iso: string): string => {
+  const [y, m, d] = (iso || '').split('-');
+  return y ? `${d}/${m}/${y}` : '';
+};

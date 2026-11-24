@@ -152,8 +152,70 @@ const seed = async () => {
         values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
         [co.id, type, pc, date, ref, doc, PL_DESC[ref] ?? (doc === 'Opening Balance' ? 'Opening balance' : doc), dr, cr]);
 
+    // ── batch 3: assets, employees, contract/meter types, contracts, billing period (legacy assetDefaults 3219 / empDefaults 4859 / CT_DEF 3331 / MT_DEF 3341 / contractDefaults 3428) ──
+    const CT_DEF = [
+      ['Bank Rental', 'required', true, false], ['Inhouse Rental', 'required', false, false],
+      ['Evergreen Rental', 'required', false, true], ['Service', 'optional', false, false]];
+    const CUST_CODE = { 'Woolworths Ltd': 'CUST-001', 'MTN Group': 'CUST-003', 'Standard Bank': 'CUST-005', 'Shoprite Holdings': 'CUST-002' };
+    for (const a of [
+      ['AST-0001', 'company', 'Dell Latitude laptops (x5)', 'Computer Equipment', 'DL-5521', 'Head office', 'Woolworths Ltd', '2024-04-15', 62500, 0, 36, 'Dell SA'],
+      ['AST-0002', 'company', 'Toyota Hilux 2.4 GD-6', 'Motor Vehicles', 'CA 123-456', 'Sales — T. Dlamini', 'MTN Group', '2023-09-01', 520000, 130000, 60, 'Toyota Rosebank'],
+      ['AST-0003', 'company', 'Office furniture — boardroom', 'Furniture & Fittings', '', 'Boardroom', 'Standard Bank', '2022-06-10', 48000, 0, 72, 'Workspace Interiors'],
+      ['AST-0004', 'company', 'Canon imageRUNNER C5560i', 'Printing Machines', 'CN-55601', 'Brackenfell — 2nd floor', 'Shoprite Holdings', '2025-02-01', 96000, 12000, 60, 'Canon SA'],
+      ['AST-0005', 'customer', 'HP LaserJet Enterprise M611 (customer-owned)', 'Printing Machines', 'HP-61122', 'Cape Town — reception', 'Naspers Ltd', '2025-03-01', 0, 0, 0, ''],
+      ['AST-0006', 'warehouse', 'Canon imageRUNNER C3326 (in stock)', 'Printing Machines', 'CN-33261', 'Warehouse — rack B2', null, '2025-03-05', 38000, 0, 0, 'Canon SA'],
+    ])
+      await db.query(
+        `insert into assets (company_id, code, atype, name, cat, ser, loc, cust_code, purchase_date, cost, res, life, sup)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        [co.id, a[0], a[1], a[2], a[3], a[4], a[5], a[6] ? CUST_CODE[a[6]] : null, a[7], a[8], a[9], a[10], a[11] || null]);
+
+    for (const [name, asset, funder, ever] of CT_DEF)
+      await db.query(
+        `insert into contract_types (company_id, name, asset_req, funder, ever, rev, cos) values ($1,$2,$3,$4,$5,'1000','2000')`,
+        [co.id, name, asset, funder, ever]);
+    for (const name of ['Mono', 'Colour', 'Scan', 'Tier 1', 'Tier 2', 'Tier 3'])
+      await db.query(`insert into meter_types (company_id, name, rev, cos) values ($1,$2,'1000','2000')`, [co.id, name]);
+
+    for (const e of [
+      ['EM-0001', 'Pieter Botha', 'pieter@example.co.za', '082 555 0101', true, false],
+      ['EM-0002', 'Lerato Dlamini', 'lerato@example.co.za', '083 555 0102', false, true],
+      ['EM-0003', 'Naledi Khumalo', 'naledi@example.co.za', '084 555 0103', true, true],
+    ])
+      await db.query(
+        `insert into employees (company_id, code, name, email, phone, is_mgr, is_sales) values ($1,$2,$3,$4,$5,$6,$7)`,
+        [co.id, e[0], e[1], e[2], e[3], e[4], e[5]]);
+
+    const EMP_FIND = (mgr, sales) => mgr && sales ? 'EM-0003' : mgr ? 'EM-0001' : sales ? 'EM-0002' : null;
+    for (const c of [
+      { id: 'CON-0001', cust: 'Woolworths Ltd', ref: 'PO-7781', start: '2025-01-01', freq: 1, esc: 7, mgr: true, sales: false, lines: [
+        [1, 'Inhouse Rental', 'AST-0001', 'Laptop rental x5', 6500, 24, '2025-01-01', ''],
+        [2, 'Service', '', 'Onsite support retainer', 12000, 36, '2025-01-01', '']] },
+      { id: 'CON-0002', cust: 'MTN Group', ref: '', start: '2025-04-01', freq: 3, esc: 5, mgr: false, sales: true, lines: [
+        [1, 'Bank Rental', 'AST-0002', 'Vehicle rental (financed)', 42000, 60, '2025-04-01', 'WesBank']] },
+      { id: 'CON-0003', cust: 'Standard Bank', ref: 'SB-203', start: '2024-07-01', freq: 1, esc: 0, mgr: true, sales: true, lines: [
+        [1, 'Evergreen Rental', 'AST-0003', 'Boardroom furniture', 4000, 12, '2024-07-01', '']] },
+      { id: 'CON-0004', cust: 'Shoprite Holdings', ref: 'SH-PRT-01', start: '2025-03-01', freq: 1, esc: 0, mgr: false, sales: false, lines: [
+        [1, 'Inhouse Rental', 'AST-0004', 'Canon C5560i rental', 1800, 36, '2025-03-01', '']],
+        meters: [[1, 'AST-0004', 'Mono', 0.15, 12500], [2, 'AST-0004', 'Colour', 0.85, 3400]] },
+    ]) {
+      await db.query(
+        `insert into contracts (company_id, code, cust_code, ref, status, start_date, freq, esc, mgr_code, sales_code)
+         values ($1,$2,$3,nullif($4,''),'Active',$5,$6,$7,$8,$9)`,
+        [co.id, c.id, CUST_CODE[c.cust], c.ref, c.start, c.freq, c.esc, EMP_FIND(c.mgr, c.sales), EMP_FIND(false, c.sales)]);
+      for (const [ln, type, asset, desc, amt, term, start, funder] of c.lines)
+        await db.query(
+          `insert into contract_lines (company_id, contract_code, line_no, ctype, asset_code, descr, amt, term, start_date, funder)
+           values ($1,$2,$3,$4,nullif($5,''),$6,$7,$8,$9,nullif($10,''))`,
+          [co.id, c.id, ln, type, asset, desc, amt, term, start, funder]);
+      for (const [mn, asset, mtype, rate, start] of (c.meters || []))
+        await db.query(
+          `insert into contract_meters (company_id, contract_code, meter_no, asset_code, mtype, rate, start_reading)
+           values ($1,$2,$3,$4,$5,$6,$7)`, [co.id, c.id, mn, asset, mtype, rate, start]);
+    }
+    await db.query(`insert into billing_periods (company_id, id, status) values ($1,'2025-03','open')`, [co.id]);
     await db.query('commit');
-    console.log('seeded: 4 demo users, Demo Company (Pty) Ltd + COA + 3 FYs + batch 2 demo data');
+    console.log('seeded: 4 demo users, Demo Company (Pty) Ltd + COA + 3 FYs + batch 2/3 demo data');
   } catch (e) {
     await db.query('rollback');
     throw e;
