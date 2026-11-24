@@ -18,14 +18,15 @@ apps/web/      @numera/web     — Angular 22 (zoneless, standalone, signals)
 
 - Run API: `npm run dev:api` (:8788, tsx watch). Run web: `npm run dev:web` (:4200, `proxy.conf.json` sends /api → 8788). Neon connection string in `apps/api/.env` (gitignored, never echo it).
 - Verify: `npm run migrate -w @numera/api` / `npm run seed -w @numera/api`; `npx tsc --noEmit` per package; `npm run build -w @numera/web`.
-- Validation contract (setup.md): every feature is exercised in the browser with Playwright before it counts as done.
+- Validation contract (setup.md): every feature is exercised in the browser with Playwright before it counts as done. The Playwright MCP plugin may fail to connect — fall back to a direct `playwright` script in the repo root (`npm i --no-save playwright` + `npx playwright install chromium`), delete scripts before committing. Neon latency: DOM reads right after navigation often show the empty state — re-probe or verify via `/api/...`.
 
 ### Backend conventions
 
 - Errors are `{error: string}` with status 400/401/403/404/409; 500 never leaks SQL. `requireCan(mod, sec)` is the guard (admin bypasses); every mutation logs via `logEv`.
 - pg: DATE columns parse to plain `YYYY-MM-DD` strings (global type parser in `db.ts`, never JS Date); NUMERIC arrives as string — `Number()` at the edges.
 - `financial_years`: `end_date`, aliased as `"end"` in queries; `withHistory()` normalizes dates + parses the jsonb history. Versioned migration files only — never reorder applied ones.
-- ACL is `accOf(u)`: overrides replace the whole ACCESS map (wholesale, not merged); no access rows in `user_company_access` = all companies (legacy `userCos` semantics).
+- ACL is `accOf(u)`: overrides replace the whole ACCESS map (wholesale, not merged); no access rows in `user_company_access` = all companies (legacy `userCos` semantics). Gotcha: a truthy empty-object override reads as *no* access — both `/auth/login` and `/auth/me` must return the resolved `access: effAccess(u)` map, and anything that sets a user in the web store must populate `auth.access` (SPA login otherwise disables every route/sidebar link until a full reload).
+- Router mounts vary (`app.use('/api', …)` vs `app.use('/api/gl', …)`): gl, settings and auth are prefixed; assets, contracts and billing are flat under `/api` (`/api/ctypes`, `/api/contracts`, `/api/escalations`, `/api/assets`, `/api/billing/periods`, …). Check `index.ts` before fetching an endpoint.
 - Email settings: SMTP password AES-256-GCM at rest, never returned — `has_password` boolean only.
 
 ### Angular conventions (zoneless!)
