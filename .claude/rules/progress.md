@@ -171,7 +171,7 @@ SUP-006 · SJ-2025-001 · PI-2025-023 · DN-2025-004 · CN-2025-009 · RCP-2025-
 
 ### Demo credentials (demo-grade — change before real use)
 
-admin/N@mera2026 Â· nomsa/Numera@2026nx Â· thabo/Mokoena@2026 Â· pieter/DeWet@2026. All except admin had `must_change` cleared during validation.
+Reset 2026-11-25 (batch 5): admin/`Numera@2026nx` · nomsa/`Nomsa@2025` · thabo/`Thabo@2025` · pieter/`Pieter@2025`. Only admin has `must_change` cleared; a `reset-demo` + `seed` restores these. (Batch 2–4 passwords from previous sessions are gone with the reseed.)
 
 ## Batch 2 entry pointers
 
