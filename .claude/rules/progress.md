@@ -19,10 +19,45 @@ Plan of record: `C:\Users\James\.claude\plans\start-converting-the-app-robust-le
 | 2 | customers/suppliers/inventory + AR/AP + GL transactions & enquiries (glJournalBase â†’ posting-time journal inserts) | âœ… done on `batch-2/masterdata-ar-ap-gl` (2026-11-11) |
 | 3 | contracts + billing (+Employees, minimal assets) | âœ… done on `batch-3/contracts-billing` (2026-11-24) |
 | 4 | service/work orders (+ inventory parts requests, asset service/dep, svctypes, technicians) | âœ… done on `batch-4/service-workorders` (2026-11-24) |
-| 5 | procurement/buybacks/conversions (glBB/glCV) | |
+| 5 | procurement POs + GRN + asset buy-backs/conversions (glBB/glCV) | âœ… done on `batch-5/procurement-buybacks` (2026-11-25) |
 | 6 | VAT (vat_periods table + assertPostingDate port of checkPostingDate 2791) | |
 | 7 | reports/budgets/exports + closing journal + FY totals recompute | |
 | after | statements/outbox/dashboard KPIs, PAYE, tax calendar, localStorage importer option | deferred |
+
+## Batch 5 — done (2026-11-25)
+
+Branch `batch-5/procurement-buybacks`, committed. Migrations `010_procurement_buybacks.sql` (purchase_orders + lines, goods_received + lines, asset_buybacks, asset_conversions, supplier_invoices.gnr/po columns, assets.acq_date), `011_grn_line_prices.sql` (price/vat on GRN lines, legacy grnVal), `012_grn_fk_setnull.sql` (column-list SET NULL).
+
+### Gates — tsc api + web green; ng build 728.53 kB initial (budget 750 kB)
+
+### Validated (direct Playwright script, MCP plugin failed again; deleted before commit) — 63 API + 12 browser checks, all green
+- **POs**: validation order verbatim (sup → date → due → due<order → empty lines → per-line desc/qty/price), numbering PO-00001…, list totals per poTotals (line-r2, line-vat), draft edit, **bookkeeper PO list 200** (legacy `bookkeeper: procurement:'*'`), **approve 403 verbatim** "Only an administrator or accountant can approve purchase orders.", approve/mark-sent/cancel paths, draft delete, viewer create 403.
+- **GRN**: guards verbatim (sup → po → sup mismatch → date → before order date → over-receive "…outstanding on â€œXâ€" (n)" → all-zero "Enter a received quantity for at least one line."), partial receive → PO Part received, second GRN → Received + nst/stock rows (`Goods received — PO-…`), GRN list lines.
+- **PI ↔ GRN**: capture against GRN → GRN chip Invoiced + PI list subline + double-invoice 409; grn-lookup.
+- **Buy-back**: validation order verbatim (cust → asset → date → price → res<price → life), glBB legs **Dr 5000 / Dr 6300 / Cr 6100**, party_ledger credit row ("Asset buy-back — <desc>"), asset flips to company at price+buyback date, owner→null / sup=customer name, BB list total incl VAT.
+- **Conversion**: validation order verbatim (asset → date → before acquisition → res<cost → from≠to), glCV legs **Dr 5020 / Cr 6200**, asset → company (acq_date keeps original purchase date), CV list, **5020 Rental Equipment auto-created on first conversion (ensureRentGL port)**.
+- **Browser**: login → dashboard, PO tab list + New PO modal (empty-save verbatim error), PO row Received chip, GRN tab rows + linked PI, PI list GRN subline, buybacks/conversions tabs render, register card buttons.
+
+### Bugs found & fixed during validation
+- **`p.ordered_by as by` → 500**: `by` is reserved SQL — unquoted reserved-word aliases die too (same gotcha family as camelCase aliases).
+- **goods_received_lines has grn_id, not po_id** — two receive-count queries joined wrongly (42703); fixed with join through goods_received.
+- **Draft-PO delete left orphan lines** (purchase_order_lines has no FK) → next create hit 23505 "conflicts… already saved"; delete lines explicitly.
+- **Composite FK ON DELETE SET NULL nulls ALL FK columns** — `supplier_invoices.grn_id (company_id, grn_id) ON DELETE SET NULL` nulled NOT NULL company_id → 23502 on any GRN deletion. Migration 012: `ON DELETE SET NULL (grn_id)` column-list syntax (PG15+/Neon).
+- **CV update had an unused bound param** ($3 in params but not in SQL) → 42P18 "could not determine data type of parameter".
+- **CV route never selected `a.atype`** → every conversion of a valid warehouse asset failed "Select the warehouse asset to convert."
+- **`GET /companies` for non-admins required explicit access rows** (batch-1 bug, surfaced here): denied the legacy userCos semantics "no rows = all companies"; now uses the same `companiesFor` as login.
+- Demo seed FYs end 2026-03-31 — validation dates used 2025-11 dates in the open 2025/26 FY.
+
+### Deviations / notes
+- PO print (printPO) and GRN view doc (viewGRN) deferred with the batch-7 export engine (same as svExport/WO exports).
+- PO approval notification email (poNotifyRequestor) deferred to the outbox batch; approve toast notes it.
+- PO status endpoint also supports `Received`, but received_date is normally set through GRN completion (legacy poStatus path kept for completeness).
+- Buy-back/conversion account checks ("Buy-back needs account X on the Chart of Accounts.") are new 400 guards — legacy derived journals silently skipped missing accounts (dep-posting precedent from batch 4).
+- Buy-Back/Convert buttons on the Asset Register link to the BB/CV history tabs (modal opens there) instead of opening in place.
+- `assets.acq_date` added — legacy stored the pre-conversion purchase date in `acqDate` (parity for data, no UI reader).
+
+### Demo DB state
+Wiped back to clean seed (batch-5 artifacts deleted — deterministic, re-creatable): `npm run reset-demo -w @numera/api` + `npm run seed` reproduce. Passwords after reseed: admin `Numera@2026nx` (browser flow cleared must_change), nomsa/thabo/pieter `@2025` seed passwords with must_change pending.
 
 ## Batch 4 — done (2026-11-24)
 

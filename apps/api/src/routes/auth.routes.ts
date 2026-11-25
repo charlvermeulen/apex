@@ -11,7 +11,7 @@ const COOKIE = 'numera_sid';
 const MAX_FAILS = 5, LOCK_MIN = 5; // legacy 2508
 
 // legacy userCos 2523: no access rows = all companies (any role); rows restrict.
-const companiesFor = async (user: { id: string; role: string }) => {
+export const companiesFor = async (user: { id: string; role: string }) => {
   const rows = (await q(`select c.id, c.name, c.seed, c.created_at from companies c
     join user_company_access a on a.company_id = c.id where a.user_id = $1 order by c.created_at`, [user.id])).rows;
   if (user.role === 'admin' || !rows.length)

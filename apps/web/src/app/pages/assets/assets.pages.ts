@@ -27,7 +27,9 @@ interface Asset {
   </div>
   <div class="card">
     <div class="card-title">Asset Register
-      <a class="btn btn-p btn-sm" routerLink="/assets/add"><i class="ti ti-plus"></i> Add Asset</a></div>
+      <a class="btn btn-p btn-sm" routerLink="/assets/add"><i class="ti ti-plus"></i> Add Asset</a>
+      <a class="btn btn-s btn-sm" routerLink="/assets/buybacks"><i class="ti ti-arrow-back-up"></i> Buy Back from Customer</a>
+      <a class="btn btn-s btn-sm" routerLink="/assets/conversions"><i class="ti ti-transform"></i> Convert to Rental Equipment</a></div>
     <div class="fr" style="margin-bottom:8px">
       <div class="fg"><label>Asset type</label>
         <select [(ngModel)]="tf" (ngModelChange)="render()">
@@ -295,3 +297,186 @@ export class AssetsDepComponent {
     this.cdr.detectChanges();
   }
 }
+
+// ── Asset Buy-Back from Customer (openBB/bbCands/saveBB/renderBB 5759–5788) ──
+interface Bb { id: string; date: string; asset: string; assetDesc: string; cust: string; to: string; price: number; vat: number; tot: number; settle: string; ref: string; notes: string }
+
+@Component({
+  selector: 'app-assets-bb', imports: [FormsModule],
+  template: `
+  <div class="card"><div class="card-title">Buy-Back History
+    <button class="btn btn-p btn-sm" (click)="openModal()"><i class="ti ti-arrow-back-up"></i> Buy Back from Customer</button></div>
+    <table><thead><tr><th>Ref</th><th>Date</th><th>Asset</th><th>Bought from</th><th>Becomes</th>
+      <th class="tr">Price excl VAT</th><th class="tr">VAT</th><th class="tr">Total</th><th>Settled</th></tr></thead><tbody>
+      @for (b of rows(); track b.id) {
+        <tr><td>{{b.id}}</td><td>{{fmtD(b.date, 1)}}</td>
+          <td>{{b.asset}}<div style="font-size:11px;color:var(--txm)">{{b.assetDesc}}</div></td>
+          <td>{{b.cust}}</td>
+          <td>{{b.to === 'company' ? 'Company Asset' : 'Warehouse'}}</td>
+          <td class="tr">{{fmtR(b.price)}}</td><td class="tr">{{fmtR(b.vat)}}</td><td class="tr"><strong>{{fmtR(b.tot)}}</strong></td>
+          <td>{{b.settle === 'credit' ? 'Credited to customer' : 'Paid from bank'}}</td></tr>
+      } @empty { <tr><td colspan="9" style="text-align:center;color:var(--txm)">No buy-backs yet.</td></tr> }
+    </tbody></table></div>
+  @if (isOpen()) {
+    <div class="modal-bg" style="display:block" (click)="close($event)">
+      <div class="modal" style="max-width:600px" (click)="$event.stopPropagation()">
+        <div class="rm-hd"><strong>Buy Back Asset from Customer</strong><button class="btn btn-s btn-sm" (click)="close()">✕</button></div>
+        <div style="font-size:13px;color:var(--tx2);margin-bottom:10px">Buy a customer-owned asset and bring it onto your books.</div>
+        <div class="fr"><div class="fg"><label>Customer *</label>
+          <select [(ngModel)]="f.cust" (ngModelChange)="cd()"><option value="">Select customer…</option>
+            @for (n of custNames(); track n.code) { <option [value]="n.code">{{n.name}}</option> }</select></div>
+          <div class="fg"><label>Asset *</label><select [(ngModel)]="f.asset">
+            <option value="">@if (custNames().length) { @if (cands().length) { Select asset… } @else { No buy-back eligible assets } } @else { Select customer first }</option>
+            @for (a of cands(); track a.code) { <option [value]="a.code">{{a.code}} — {{a.name}}{{a.ser ? ' (' + a.ser + ')' : ''}}</option> }</select></div></div>
+        <div class="fr3">
+          <div class="fg"><label>Buy-back date *</label><input type="date" [(ngModel)]="f.date"></div>
+          <div class="fg"><label>Price (excl VAT) *</label><input type="number" min="0" step="0.01" [(ngModel)]="f.price" (ngModelChange)="calc()"></div>
+          <div class="fg"><label>VAT</label><select [(ngModel)]="f.vat" (ngModelChange)="calc()"><option value="0">No VAT</option><option value="15">15% (claim input VAT)</option></select></div></div>
+        <div class="fr">
+          <div class="fg"><label>Asset becomes *</label><select [(ngModel)]="f.to" (ngModelChange)="cd()">
+            <option value="company">Company Asset — depreciated</option>
+            <option value="warehouse">Warehouse (Inventory) — held for resale / redeployment</option></select></div>
+          <div class="fg"><label>Settlement *</label><select [(ngModel)]="f.settle">
+            <option value="credit">Credit the customer's account</option>
+            <option value="bank">Pay from bank (FNB)</option></select></div></div>
+        @if (f.to === 'company') {
+          <div class="fr"><div class="fg"><label>Residual value</label><input type="number" min="0" step="0.01" [(ngModel)]="f.res"></div>
+            <div class="fg"><label>Useful life (months)</label><input type="number" min="1" max="600" [(ngModel)]="f.life"></div></div>
+        }
+        <div class="fr"><div class="fg"><label>Reference</label><input [(ngModel)]="f.ref" maxlength="40" placeholder="Customer document / agreement no."></div>
+          <div class="fg"><label>Total payable</label><input [value]="total()" disabled></div></div>
+        <div class="fg"><label>Notes</label><input [(ngModel)]="f.notes" maxlength="120"></div>
+        <div class="form-err" [style.display]="err() ? 'block' : 'none'">{{err()}}</div>
+        <div class="btn-grp"><button class="btn btn-p" (click)="save()">Buy Back Asset</button>
+          <button class="btn btn-s" (click)="close()">Cancel</button></div>
+      </div></div>
+  }`,
+})
+export class AssetsBBComponent {
+  fmtR = fmtR; fmtD = fmtD;
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  private cdr = inject(ChangeDetectorRef);
+  rows = signal<Bb[]>([]); assets = signal<Asset[]>([]);
+  isOpen = signal(false); err = signal('');
+  f = { cust: '', asset: '', date: todayIso(), price: 0, vat: '0', to: 'company', res: 0, life: 36, settle: 'credit', ref: '', notes: '' };
+
+  constructor() { void this.reload(); }
+  // bbCands (5760): customer-owned, active, not on a live contract line
+  cands = () => this.assets().filter((a) => a.status === 'Active' && a.atype === 'customer' && a.cust === this.f.cust && !a.onLine);
+  custNames = () => {
+    const m = new Map<string, string>();
+    this.assets().filter((a) => a.status === 'Active' && a.atype === 'customer' && a.cust && !a.onLine).forEach((a) => m.set(a.cust!, a.custName ?? a.cust!));
+    return [...m].map(([code, name]) => ({ code, name }));
+  };
+  calc() { this.cdr.detectChanges(); }
+  total = () => this.f.price > 0 ? fmtR(Math.round((this.f.price + (this.f.vat === '15' ? this.f.price * 0.15 : 0)) * 100) / 100) : '';
+  cd() { this.cdr.detectChanges(); }
+  close(e?: MouseEvent) { if (!e || (e.target as HTMLElement).classList.contains('modal-bg')) this.isOpen.set(false); this.cdr.detectChanges(); }
+  openModal() {
+    this.f = { cust: '', asset: '', date: todayIso(), price: 0, vat: '0', to: 'company', res: 0, life: 36, settle: 'credit', ref: '', notes: '' };
+    this.err.set(''); this.isOpen.set(true); this.cdr.detectChanges();
+  }
+  async reload() {
+    const [rows, assets] = await Promise.all([this.api.get<Bb[]>('/assets/buybacks'), this.api.get<Asset[]>('/assets')]);
+    this.rows.set(rows); this.assets.set(assets); this.cdr.detectChanges();
+  }
+  async save() {
+    this.err.set('');
+    const a = this.assets().find((x) => x.code === this.f.asset);
+    try {
+      const r = await this.api.post<{ id: string }>('/assets/buybacks', {
+        cust: this.f.cust, asset: this.f.asset, date: this.f.date, price: Number(this.f.price),
+        vat: this.f.vat, to: this.f.to, settle: this.f.settle, res: Number(this.f.res), life: Number(this.f.life),
+        ref: this.f.ref.trim(), notes: this.f.notes.trim(),
+      });
+      this.toast.show('Asset ' + (a?.code ?? '') + ' bought back from ' + (a?.custName ?? '') + ' (' + this.total() + ').');
+      this.isOpen.set(false); await this.reload();
+    } catch (e) { this.err.set((e as ApiError).message); this.cdr.detectChanges(); }
+  }
+}
+
+// ── Convert Inventory Asset → Rental Equipment (openCV/cvCands/saveCV/renderCV 5791–5818) ──
+const GL_RENT = '5020';
+interface Cv { id: string; date: string; asset: string; assetDesc: string; value: number; from: string; to: string; fromName: string; toName: string; notes: string }
+
+@Component({
+  selector: 'app-assets-cv', imports: [FormsModule],
+  template: `
+  <div class="card"><div class="card-title">Conversion History
+    <button class="btn btn-p btn-sm" (click)="openModal()"><i class="ti ti-transform"></i> Convert to Rental Equipment</button></div>
+    <table><thead><tr><th>Ref</th><th>Date</th><th>Asset</th><th class="tr">Value moved</th><th>From GL</th><th>To GL</th></tr></thead><tbody>
+      @for (c of rows(); track c.id) {
+        <tr><td>{{c.id}}</td><td>{{fmtD(c.date, 1)}}</td>
+          <td>{{c.asset}}<div style="font-size:11px;color:var(--txm)">{{c.assetDesc}}</div></td>
+          <td class="tr"><strong>{{fmtR(c.value)}}</strong></td><td>{{c.from}} — {{c.fromName}}</td><td>{{c.to}} — {{c.toName}}</td></tr>
+      } @empty { <tr><td colspan="6" style="text-align:center;color:var(--txm)">No conversions yet.</td></tr> }
+    </tbody></table></div>
+  @if (isOpen()) {
+    <div class="modal-bg" style="display:block" (click)="close($event)">
+      <div class="modal" style="max-width:580px" (click)="$event.stopPropagation()">
+        <div class="rm-hd"><strong>Convert Inventory Asset to Rental Equipment</strong><button class="btn btn-s btn-sm" (click)="close()">✕</button></div>
+        <div style="font-size:13px;color:var(--tx2);margin-bottom:10px">Moves a warehouse asset out of Inventory and into Rental Equipment, where it is depreciated and can be placed on a contract.</div>
+        <div class="fg"><label>Warehouse asset *</label><select [(ngModel)]="f.asset" (ngModelChange)="assetChanged()">
+          <option value="">@if (cands().length) { Select asset… } @else { No warehouse assets to convert }</option>
+          @for (a of cands(); track a.code) { <option [value]="a.code">{{a.code}} — {{a.name}}{{a.ser ? ' (' + a.ser + ')' : ''}}</option> }</select></div>
+        <div class="fr3">
+          <div class="fg"><label>Conversion date *</label><input type="date" [(ngModel)]="f.date"></div>
+          <div class="fg"><label>Value moved</label><input [value]="sel()?.cost ? fmtR(sel()!.cost) : ''" disabled></div>
+          <div class="fg"><label>Useful life (months) *</label><input type="number" min="1" max="600" [(ngModel)]="f.life"></div></div>
+        <div class="fr"><div class="fg"><label>Residual value</label><input type="number" min="0" step="0.01" [(ngModel)]="f.res"></div>
+          <div class="fg"><label>Notes</label><input [(ngModel)]="f.notes" maxlength="120"></div></div>
+        <div class="fr"><div class="fg"><label>From (Inventory GL) *</label><select [(ngModel)]="f.from">
+          @for (a of glAccs(); track a.code) { <option [value]="a.code">{{a.code}} — {{a.name}}</option> }</select></div>
+          <div class="fg"><label>To (Rental Equipment GL) *</label><select [(ngModel)]="f.to">
+          @for (a of glAccs(); track a.code) { <option [value]="a.code">{{a.code}} — {{a.name}}</option> }</select></div></div>
+        <div class="form-err" [style.display]="err() ? 'block' : 'none'">{{err()}}</div>
+        <div class="btn-grp"><button class="btn btn-p" (click)="save()">Convert Asset</button>
+          <button class="btn btn-s" (click)="close()">Cancel</button></div>
+      </div></div>
+  }`,
+})
+export class AssetsCvComponent {
+  fmtR = fmtR; fmtD = fmtD;
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  private cdr = inject(ChangeDetectorRef);
+  rows = signal<Cv[]>([]); assets = signal<Asset[]>([]);
+  accs = signal<{ code: string; name: string; type: string }[]>([]);
+  isOpen = signal(false); err = signal('');
+  f = { asset: '', date: todayIso(), res: 0, life: 60, from: '6200', to: GL_RENT, notes: '' };
+
+  constructor() { void this.reload(); }
+  // cvCands (5794): warehouse assets, active — GL selects list asset-section accounts (openCV 5798)
+  cands = () => this.assets().filter((a) => a.status === 'Active' && a.atype === 'warehouse');
+  sel = () => this.assets().find((a) => a.code === this.f.asset);
+  glAccs = () => this.accs().filter((a) => a.type.includes('Asset') || a.type === 'Bank');
+  assetChanged() { const a = this.sel(); if (a) { this.f.res = 0; if (a.life) this.f.life = a.life; } this.cd(); }
+  cd() { this.cdr.detectChanges(); }
+  close(e?: MouseEvent) { if (!e || (e.target as HTMLElement).classList.contains('modal-bg')) this.isOpen.set(false); this.cdr.detectChanges(); }
+  async reload() {
+    const [rows, assets, gl] = await Promise.all([
+      this.api.get<Cv[]>('/assets/conversions'), this.api.get<Asset[]>('/assets'), this.api.get<{ code: string; name: string; type: string }[]>('/gl/accounts'),
+    ]);
+    this.rows.set(rows); this.assets.set(assets); this.accs.set(gl);
+    // defaults only when they exist on the chart (openCV 5799)
+    const g = this.glAccs();
+    if (g.length && !g.some((a) => a.code === '6200')) this.f.from = g[0].code;
+    if (g.length && !g.some((a) => a.code === GL_RENT)) this.f.to = g[0].code;
+    this.cdr.detectChanges();
+  }
+  openModal() {
+    this.f = { asset: '', date: todayIso(), res: 0, life: 60, from: this.glAccs().some((a) => a.code === '6200') ? '6200' : (this.glAccs()[0]?.code ?? '6200'), to: this.glAccs().some((a) => a.code === GL_RENT) ? GL_RENT : (this.glAccs()[0]?.code ?? GL_RENT), notes: '' };
+    this.err.set(''); this.isOpen.set(true); this.cdr.detectChanges();
+  }
+  async save() {
+    this.err.set('');
+    const a = this.sel();
+    try {
+      const r = await this.api.post<{ id: string }>('/assets/conversions', { asset: this.f.asset, date: this.f.date, res: Number(this.f.res), life: Number(this.f.life), from: this.f.from, to: this.f.to, notes: this.f.notes.trim() });
+      this.toast.show((a?.code ?? '') + ' converted to Rental Equipment (' + fmtR(a?.cost ?? 0) + ' moved from GL ' + this.f.from + ' to ' + this.f.to + '). — saved as ' + r.id);
+      this.isOpen.set(false); await this.reload();
+    } catch (e) { this.err.set((e as ApiError).message); this.cdr.detectChanges(); }
+  }
+}
+

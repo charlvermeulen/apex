@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { q } from '../db.js';
 import { ApiError, AuthedReq, logEv, requireAuth, requireCan } from '../middleware.js';
-import { checkPostingDate, nextDocRef, postJournal, r2, withTx } from '../posting.js';
+import { checkPostingDate, fmtD, nextDocRef, postJournal, r2, withTx } from '../posting.js';
+import { fyIdFor } from './sales.routes.js';
 
 export const assets = Router();
 assets.use(requireAuth);
@@ -71,7 +72,7 @@ assets.get('/assets', requireCan('assets', 'enq'), async (req: AuthedReq, res, n
          from assets a left join customers c on c.company_id = a.company_id and c.code = a.cust_code
         where a.company_id = $1 order by a.code`, [req.companyId])).rows;
     for (const r of rows as any[]) {
-      if (r.status === 'Active' && r.atype === 'company') r.onLine = await assetLine({ query: (t: string, p?: unknown[]) => q(t, p) }, req.companyId!, r.code);
+      if (r.status === 'Active' && (r.atype === 'company' || r.atype === 'customer')) r.onLine = await assetLine({ query: (t: string, p?: unknown[]) => q(t, p) }, req.companyId!, r.code);
       else r.onLine = '';
     }
     res.json(rows);
@@ -263,6 +264,160 @@ assets.post('/assets/dep', requireCan('assets', 'maint'), async (req: AuthedReq,
       });
       await logEv(req.user!.id, req.user!.username, 'Depreciation posted', `${month} — ${todo.length} assets, ${total}`, req.companyId);
       res.json({ count: todo.length, total });
+    });
+  } catch (e) { next(e); }
+});
+
+// ── Asset Buy-Back from Customer (openBB/saveBB 5759–5788) ──
+
+const bbSchema = z.object({
+  cust: z.string(), asset: z.string(), date: z.string(), price: z.number(),
+  vat: z.enum(['15', '0']), to: z.enum(['company', 'warehouse']), settle: z.enum(['credit', 'bank']),
+  res: z.number().optional().default(0), life: z.number().optional().default(0),
+  ref: z.string().trim().optional().default(''), notes: z.string().trim().optional().default(''),
+});
+
+assets.get('/assets/buybacks', requireCan('assets', 'enq'), async (req: AuthedReq, res, next) => {
+  try {
+    res.json((await q(
+      `select b.id, b.buyback_date as date, a.code as asset, coalesce(b.descr, a.name) as "assetDesc",
+              c.name as cust, b.to_type as to, b.price::float, b.vat::float, b.total::float as tot,
+              b.settle, coalesce(b.ref,'') as ref, coalesce(b.notes,'') as notes
+         from asset_buybacks b
+         left join assets a on a.company_id = b.company_id and a.code = b.asset_code
+         left join customers c on c.company_id = b.company_id and c.code = b.cust_code
+        where b.company_id = $1 order by b.buyback_date desc, b.id desc`, [req.companyId])).rows);
+  } catch (e) { next(e); }
+});
+
+assets.post('/assets/buybacks', requireCan('assets', 'maint'), async (req: AuthedReq, res, next) => {
+  try {
+    // asset candidates (bbCands 5760): customer-owned, active, not on a live contract line
+    const cand = (await q(
+      `select a.code, a.name, a.cust_code as cust from assets a
+        where a.company_id = $1 and a.atype = 'customer' and a.status = 'Active' and a.cust_code is not null`, [req.companyId])).rows as any[];
+    const candMap = new Map(cand.map((a) => [a.code, a]));
+    const o = bbSchema.parse(req.body);
+    await withTx(async (c) => {
+      if (!o.cust) throw new ApiError(400, 'Select the customer.');
+      const a = candMap.get(o.asset);
+      if (!a) throw new ApiError(400, 'Select the asset being bought back.');
+      if (a.cust !== o.cust) throw new ApiError(400, 'Select the asset being bought back.');
+      const onLine = await assetLine(c, req.companyId!, a.code);
+      if (onLine) throw new ApiError(400, `This asset is on contract line ${onLine}. Change the customer on the contract instead.`);
+      if (!o.date) throw new ApiError(400, 'Enter the buy-back date.');
+      if (!(o.price > 0)) throw new ApiError(400, 'Enter the price — it must be greater than zero.');
+      if (o.to === 'company') {
+        if (!(o.res >= 0) || o.res >= o.price) throw new ApiError(400, 'Residual value must be zero or more and less than the price.');
+        if (!Number.isInteger(o.life) || o.life < 1 || o.life > 600) throw new ApiError(400, 'Useful life must be between 1 and 600 months.');
+      }
+      const pe = await checkPostingDate(c, req.companyId!, o.date);
+      if (pe) throw new ApiError(400, pe);
+      const cust = (await c.query('select code, name from customers where company_id = $1 and code = $2', [req.companyId, o.cust])).rows[0];
+      if (!cust) throw new ApiError(400, 'Select the customer.');
+      const vat = o.vat === '15' ? r2(o.price * 0.15) : 0;
+      const tot = r2(o.price + vat);
+      const id = await nextDocRef(c, req.companyId!, 'asset_buybacks', 'BB', 1, 'id', 4);
+      const fyId = await fyIdFor(c, req.companyId!, o.date);
+      // glBB (5786): Dr 5000 company / 6200 warehouse price, Dr 6300 VAT, Cr 6100 credit / 6000 bank the total
+      const drAcc = o.to === 'company' ? '5000' : '6200';
+      const crAcc = o.settle === 'credit' ? '6100' : '6000';
+      const want = ['6300', drAcc, crAcc];
+      const have = new Set((await c.query(`select code from accounts where company_id = $1 and code = any($2::text[])`, [req.companyId, want])).rows.map((r: any) => r.code));
+      const missing = want.filter((w) => !have.has(w));
+      if (missing.length) throw new ApiError(400, `Buy-back needs account ${missing[0]} on the Chart of Accounts.`);
+      const jid = await postJournal(c, {
+        companyId: req.companyId!, fyId, date: o.date, ref: id,
+        src: 'Asset Buy-Back', srcType: 'asset_buyback', srcId: id, desc: `${cust.name} · ${a.code}`, userId: req.user!.id,
+        lines: [
+          { acc: drAcc, dr: o.price, cr: 0 },
+          ...(vat ? [{ acc: '6300', dr: vat, cr: 0 }] : []),
+          { acc: crAcc, dr: 0, cr: tot },
+        ],
+      });
+      await c.query(
+        `insert into asset_buybacks (company_id, id, buyback_date, asset_code, descr, cust_code, to_type, price, vat, total, settle, ref, notes, journal_id)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+        [req.companyId, id, o.date, a.code, a.name, cust.code, o.to, o.price, vat, tot, o.settle, o.ref || null, o.notes || null, jid]);
+      // saveBB 5780: asset becomes ours at the buy-back price and date
+      await c.query(
+        `update assets set atype = $3, cost = $4, purchase_date = $5, acq_date = $6, res = $7, life = $8, sup = $9, cust_code = null
+          where company_id = $1 and code = $2`,
+        [req.companyId, a.code, o.to, o.price, o.date, o.date, o.to === 'company' ? o.res : 0, o.to === 'company' ? o.life : 0, cust.name]);
+      // postBBToLedger (5784): settle on the customer's account credits it
+      if (o.settle === 'credit')
+        await c.query(
+          `insert into party_ledger (company_id, party_type, party_code, entry_date, ref, doc_type, description, debit, credit, journal_id)
+           values ($1,'cust',$2,$3,$4,'Buy-Back',$5,0,$6,$7)`,
+          [req.companyId, cust.code, o.date, id, 'Asset buy-back — ' + a.name + (o.ref ? ' (' + o.ref + ')' : ''), tot, jid]);
+      await logEv(req.user!.id, req.user!.username, 'Asset bought back', `${id} · ${a.code} from ${cust.name} · ${tot}`, req.companyId);
+      res.status(201).json({ id });
+    });
+  } catch (e) { next(e); }
+});
+
+// ── Convert Inventory Asset → Rental Equipment (openCV/saveCV 5791–5818) ──
+
+const cvSchema = z.object({
+  asset: z.string(), date: z.string(), res: z.number(), life: z.number(),
+  from: z.string(), to: z.string(), notes: z.string().trim().optional().default(''),
+});
+
+assets.get('/assets/conversions', requireCan('assets', 'enq'), async (req: AuthedReq, res, next) => {
+  try {
+    res.json((await q(
+      `select v.id, v.conv_date as date, a.code as asset, coalesce(v.descr, a.name) as "assetDesc",
+              v.value::float, fa.name as "fromName", ta.name as "toName", fa.code as from, ta.code as to,
+              coalesce(v.notes,'') as notes
+         from asset_conversions v
+         left join assets a on a.company_id = v.company_id and a.code = v.asset_code
+         left join accounts fa on fa.company_id = v.company_id and fa.code = v.from_acc
+         left join accounts ta on ta.company_id = v.company_id and ta.code = v.to_acc
+        where v.company_id = $1 order by v.conv_date desc, v.id desc`, [req.companyId])).rows);
+  } catch (e) { next(e); }
+});
+
+assets.post('/assets/conversions', requireCan('assets', 'maint'), async (req: AuthedReq, res, next) => {
+  try {
+    const o = cvSchema.parse(req.body);
+    const fmtR = (n: number) => 'R ' + n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    await withTx(async (c) => {
+      const a = (await c.query(
+        `select code, name, cost::float, purchase_date as date, atype, status from assets where company_id = $1 and code = $2`, [req.companyId, o.asset])).rows[0];
+      if (!a || a.status !== 'Active' || a.atype !== 'warehouse')
+        throw new ApiError(400, 'Select the warehouse asset to convert.');
+      if (!o.date) throw new ApiError(400, 'Enter the conversion date.');
+      if (a.date && o.date < String(a.date)) throw new ApiError(400, `The conversion date cannot be before the asset was acquired (${fmtD(String(a.date))}).`);
+      if (!(o.res >= 0) || o.res >= a.cost) throw new ApiError(400, `Residual value must be zero or more and less than the cost (${fmtR(a.cost)}).`);
+      if (!Number.isInteger(o.life) || o.life < 1 || o.life > 600) throw new ApiError(400, 'Useful life must be between 1 and 600 months.');
+      if (o.from === o.to) throw new ApiError(400, 'The Inventory GL and Rental Equipment GL must be different accounts.');
+      const pe = await checkPostingDate(c, req.companyId!, o.date);
+      if (pe) throw new ApiError(400, pe);
+      // ensureRentGL (5793): the Rental Equipment account is created on first use
+      const have = new Set((await c.query(`select code from accounts where company_id = $1 and code = any($2::text[])`, [req.companyId, [o.from, o.to]])).rows.map((r: any) => r.code));
+      if (!have.has(o.to) && o.to === '5020') {
+        await c.query(`insert into accounts (company_id, code, name, type) values ($1,'5020','Rental Equipment','Fixed Asset') on conflict do nothing`, [req.companyId]);
+        have.add('5020');
+      }
+      const missing = [o.from, o.to].filter((w) => !have.has(w));
+      if (missing.length) throw new ApiError(400, `Conversion needs account ${missing[0]} on the Chart of Accounts.`);
+      const id = await nextDocRef(c, req.companyId!, 'asset_conversions', 'CV', 1, 'id', 4);
+      const fyId = await fyIdFor(c, req.companyId!, o.date);
+      const jid = await postJournal(c, {
+        companyId: req.companyId!, fyId, date: o.date, ref: id,
+        src: 'Asset Conversion', srcType: 'asset_conversion', srcId: id, desc: `${a.code} to Rental Equipment`, userId: req.user!.id,
+        lines: [{ acc: o.to, dr: a.cost, cr: 0 }, { acc: o.from, dr: 0, cr: a.cost }],
+      });
+      await c.query(
+        `insert into asset_conversions (company_id, id, conv_date, asset_code, descr, value, from_acc, to_acc, notes, journal_id)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [req.companyId, id, o.date, a.code, a.name, a.cost, o.from, o.to, o.notes || null, jid]);
+      // saveCV 5812: asset becomes a company asset dated the conversion day (acquired date kept in acq_date)
+      await c.query(
+        `update assets set atype = 'company', acq_date = $3, purchase_date = $4, res = $5, life = $6 where company_id = $1 and code = $2`,
+        [req.companyId, a.code, a.date, o.date, o.res, o.life]);
+      await logEv(req.user!.id, req.user!.username, 'Asset converted to rental equipment', `${id} · ${a.code} · ${fmtR(a.cost)}`, req.companyId);
+      res.status(201).json({ id });
     });
   } catch (e) { next(e); }
 });

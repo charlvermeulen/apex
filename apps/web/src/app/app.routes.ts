@@ -13,9 +13,9 @@ import {
 } from './pages/customers/customers.pages';
 import { CustSiComponent, CustCnComponent, CustRcptComponent, CustJnlComponent, CustEnqComponent, AgedComponent } from './pages/customers/customers-trans.pages';
 import { SupListComponent, SupAddComponent, SupJnlComponent, SupEnqComponent } from './pages/suppliers/suppliers.pages';
-import { ProcurementComponent, PiComponent, DnComponent } from './pages/procurement/procurement.pages';
+import { ProcurementComponent, PiComponent, DnComponent, PoComponent, GrnComponent } from './pages/procurement/procurement.pages';
 import { InvItemsComponent, InvCatsComponent, InvItemAddComponent, InvCardComponent, InvValComponent, InvPreqComponent, InvPretComponent } from './pages/inventory/inventory.pages';
-import { AssetsRegisterComponent, AssetFormComponent, AssetsSvcComponent, AssetsDepComponent } from './pages/assets/assets.pages';
+import { AssetsRegisterComponent, AssetFormComponent, AssetsSvcComponent, AssetsDepComponent, AssetsBBComponent, AssetsCvComponent } from './pages/assets/assets.pages';
 import { ContractsListComponent, ContractFormComponent } from './pages/contracts/contracts.pages';
 import { CbRunComponent, CbMetersComponent, CbPeriodsComponent, CbEscComponent, CbHistComponent, CustCinvComponent } from './pages/billing/billing.pages';
 import { SvCallsComponent, SvReqsComponent, SvWoComponent, SvWipComponent, SvSlaComponent } from './pages/service/service.pages';
@@ -65,6 +65,8 @@ const assetTabs: ModTab[] = [
   { label: 'Asset Register', path: '/assets/register', sec: 'maint', icon: 'ti-box-several' },
   { label: 'Maintenance & Service', path: '/assets/svc', sec: 'maint', icon: 'ti-tool', ready: true },
   { label: 'Depreciation', path: '/assets/dep', sec: 'maint', icon: 'ti-arrow-down-right', ready: true },
+  { label: 'Buy-Backs', path: '/assets/buybacks', sec: 'maint', icon: 'ti-arrow-back-up', ready: true },
+  { label: 'Conversions', path: '/assets/conversions', sec: 'maint', icon: 'ti-transform', ready: true },
 ];
 const conTabs: ModTab[] = [
   { label: 'Contracts', path: '/contracts/list', sec: 'maint', icon: 'ti-file-text' },
@@ -161,6 +163,8 @@ export const routes: Routes = [
           { path: '', pathMatch: 'full', redirectTo: 'pi' },
           { path: 'pi', component: PiComponent, data: { mod: 'procurement', sec: 'trans' }, canActivate: [canSecGuard] },
           { path: 'dn', component: DnComponent, data: { mod: 'procurement', sec: 'trans' }, canActivate: [canSecGuard] },
+          { path: 'po', component: PoComponent, data: { mod: 'procurement', sec: 'trans' }, canActivate: [canSecGuard] },
+          { path: 'grn', component: GrnComponent, data: { mod: 'procurement', sec: 'trans' }, canActivate: [canSecGuard] },
         ],
       },
       {
@@ -173,6 +177,8 @@ export const routes: Routes = [
           { path: 'add', component: AssetFormComponent, data: { mod: 'assets', sec: 'maint' }, canActivate: [canSecGuard] },
           { path: 'svc', component: AssetsSvcComponent, data: { mod: 'assets', sec: 'maint' }, canActivate: [canSecGuard] },
           { path: 'dep', component: AssetsDepComponent, data: { mod: 'assets', sec: 'maint' }, canActivate: [canSecGuard] },
+          { path: 'buybacks', component: AssetsBBComponent, data: { mod: 'assets', sec: 'maint' }, canActivate: [canSecGuard] },
+          { path: 'conversions', component: AssetsCvComponent, data: { mod: 'assets', sec: 'maint' }, canActivate: [canSecGuard] },
         ],
       },
       {

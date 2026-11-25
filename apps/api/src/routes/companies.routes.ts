@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { q } from '../db.js';
+import { companiesFor } from './auth.routes.js';
 import { ApiError, AuthedReq, logEv, requireAuth, requireAdmin, requireCan } from '../middleware.js';
 import { COA_SYS } from '@numera/shared';
 
@@ -61,11 +62,8 @@ const seedCoa = async (companyId: string, withBalances: boolean) => {
 
 companies.get('/', async (req: AuthedReq, res, next) => {
   try {
-    const rows = req.user!.role === 'admin'
-      ? (await q('select id, name, seed, fy_start, reg, vat_no, created_at from companies order by created_at')).rows
-      : (await q(`select c.id, c.name, c.seed, c.fy_start, c.reg, c.vat_no, c.created_at from companies c
-          join user_company_access a on a.company_id = c.id where a.user_id = $1 order by c.created_at`, [req.user!.id])).rows;
-    res.json(rows);
+    // userCos semantics: no access rows = all companies (companiesFor implements this; login already used it)
+    res.json(await companiesFor(req.user!));
   } catch (e) { next(e); }
 });
 
