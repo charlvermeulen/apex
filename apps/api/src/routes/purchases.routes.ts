@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { q } from '../db.js';
-import { ApiError, AuthedReq, logEv, requireAuth, requireCan } from '../middleware.js';
+import { ApiError, AuthedReq, logEv, requireAuth, requireCan, requireCanEither } from '../middleware.js';
+
+// report read access on list endpoints: legacy reports rendered POs/GRNs/sinvs from DATA (viewer OK)
+const readRep = requireCanEither(['procurement', 'trans'], ['reports', 'rep']);
 import { checkPostingDate, nextDocRef, postJournal, r2, withTx, type Client } from '../posting.js';
 import { fyIdFor, postSubJournal, subJnlSchema } from './sales.routes.js';
 
@@ -23,7 +26,7 @@ const piSchema = z.object({
   vat: z.enum(['15', '0', 'e']),
 });
 
-purchases.get('/supplier-invoices', requireCan('procurement', 'trans'), async (req: AuthedReq, res, next) => {
+purchases.get('/supplier-invoices', readRep, async (req: AuthedReq, res, next) => {
   try {
     res.json((await q(
       `select s.id, s.supplier_code as "sup", sp.name as "supName", s.their_no as "theirNo", s.invoice_date as "date",
@@ -220,7 +223,7 @@ const poList = async (companyId: string) => {
   return h;
 };
 
-purchases.get('/purchase-orders', requireCan('procurement', 'trans'), async (req: AuthedReq, res, next) => {
+purchases.get('/purchase-orders', readRep, async (req: AuthedReq, res, next) => {
   try { res.json(await poList(req.companyId!)); } catch (e) { next(e); }
 });
 
@@ -344,7 +347,7 @@ purchases.delete('/purchase-orders/:id', requireCan('procurement', 'trans'), asy
 // ── Goods Received Notes (legacy openGRN/saveGRN 5076–5115) ──
 
 // applyGrnStock (5363–5365): lines with a stock product add a qty_in move
-purchases.get('/grns', requireCan('procurement', 'trans'), async (req: AuthedReq, res, next) => {
+purchases.get('/grns', readRep, async (req: AuthedReq, res, next) => {
   try {
     const h = (await q(
       `select g.id, g.po_id as po, g.supplier_code as sup, s.name as "supName", g.rec_date as date,

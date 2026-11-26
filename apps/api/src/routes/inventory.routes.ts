@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { q } from '../db.js';
-import { ApiError, AuthedReq, logEv, requireAuth, requireCan } from '../middleware.js';
+import { ApiError, AuthedReq, logEv, requireAuth, requireCan, requireCanEither } from '../middleware.js';
 import { nextDocRef, withTx } from '../posting.js';
 
 export const inventory = Router();
@@ -234,7 +234,7 @@ const PREQ_SELECT = `
     left join employees e on e.company_id = p.company_id and e.code = p.by_code
    where p.company_id = $1`;
 
-inventory.get('/parts/requests', requireCan('inventory', 'trans'), async (req: AuthedReq, res, next) => {
+inventory.get('/parts/requests', requireCanEither(['inventory', 'trans'], ['reports', 'rep']), async (req: AuthedReq, res, next) => {
   try { res.json((await q(PREQ_SELECT + ' order by p.code desc', [req.companyId])).rows); } catch (e) { next(e); }
 });
 
@@ -318,7 +318,7 @@ inventory.post('/parts/requests/:code/cancel', requireCan('inventory', 'trans'),
 });
 
 // prOpts (5178) for the return modal + all returns
-inventory.get('/parts/returns', requireCan('inventory', 'trans'), async (req: AuthedReq, res, next) => {
+inventory.get('/parts/returns', requireCanEither(['inventory', 'trans'], ['reports', 'rep']), async (req: AuthedReq, res, next) => {
   try {
     const rows = (await q(
       `select t.code, t.pr_code as req, t.sku, t.qty::float, t.cond, t.reason, t.return_date as date

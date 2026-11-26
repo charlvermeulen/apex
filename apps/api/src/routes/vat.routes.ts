@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Response } from 'express';
 import { z } from 'zod';
-import { ApiError, AuthedReq, logEv, requireAuth, requireCan } from '../middleware.js';
+import { ApiError, AuthedReq, logEv, requireAuth, requireCan, requireCanEither } from '../middleware.js';
 import { fmtD, r2, vatLabel, withTx } from '../posting.js';
 import { addMonths, dayAdd, todayISO } from './contracts.routes.js';
 import type { Request, NextFunction } from 'express';
@@ -11,6 +11,8 @@ export const vat = Router();
 vat.use(requireAuth);
 
 const canVat = requireCan('vat', '*'); // legacy vat module is section-less: canMod('vat') guards everything, admin-only reopen
+// read endpoints also accept reports-module holders: legacy reports rendered VAT201/vper from DATA
+const canVatRead = requireCanEither(['vat', '*'], ['reports', 'rep']);
 
 const perLastOfMonth = (m: string) => dayAdd(addMonths(m + '-01', 1), -1);
 
@@ -71,7 +73,7 @@ const figures = (docs: any[]) => {
 };
 
 // GET /api/vat/periods — every period with its figures (frozen snap when closed)
-vat.get('/vat/periods', canVat, async (req: AuthedReq, res: Response, next: NextFunction) => {
+vat.get('/vat/periods', canVatRead, async (req: AuthedReq, res: Response, next: NextFunction) => {
   try {
     const ps = (await q(
       `select id, start, end_date as "end", status, closed_at as "closedAt", closed_by as "closedBy", submitted_at as "submittedAt", snap
@@ -83,13 +85,13 @@ vat.get('/vat/periods', canVat, async (req: AuthedReq, res: Response, next: Next
     res.json(ps.map((p) => {
       const f = p.status === 'closed' && p.snap ? p.snap : figures(docs.filter((d) => d.date >= p.start && d.date <= p.end));
       const e = String(p.end).slice(0, 10); const s = String(p.start).slice(0, 10);
-      return { ...p, start: s, end: e, due: dayAdd(addMonths(e.slice(0, 7) + '-01', 2), -1), net: f.net, out: f.out, inn: f.inn, nDocs: f.docs, label: vatLabel(s, e) };
+      return { ...p, start: s, end: e, due: dayAdd(addMonths(e.slice(0, 7) + '-01', 2), -1), net: f.net, out: f.out, inn: f.inn, outEx: f.outEx, inEx: f.inEx, nDocs: f.docs, label: vatLabel(s, e) };
     }));
   } catch (err) { next(err); }
 });
 
 // GET /api/vat/detail?id=YYYY-MM — the VAT Detail doc rows (renderVatDetail 4032)
-vat.get('/vat/detail', canVat, async (req: AuthedReq, res: Response, next: NextFunction) => {
+vat.get('/vat/detail', canVatRead, async (req: AuthedReq, res: Response, next: NextFunction) => {
   try {
     const p = await periodOr404(pool, req.companyId!, String(req.query.id || ''));
     const docs = await docsIn(pool, req.companyId!, p.start, p.end);

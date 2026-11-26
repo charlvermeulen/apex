@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { ApiService, ApiError, ToastService } from '../../core/api';
 import { AuthStore } from '../../core/auth.store';
+import { Exporter } from '../../core/export';
 import { fmtR, fmtD, dayMon, todayIso } from '../../core/fmt';
 
 const DN_NOTICE = 'A debit note is issued to a supplier to reduce the amount owed — typically for returned goods or overcharges. It reduces your accounts payable and adjusts input VAT.';
@@ -249,6 +250,7 @@ const poOpen = (s: string) => ['Draft', 'Approved', 'Sent', 'Part received'].inc
               <button class="btn btn-s btn-sm" (click)="setStatus(o, 'Cancelled')">Cancel</button>
             }
             @if (o.status === 'Part received') { <button class="btn btn-p btn-sm" (click)="receive(o)">Receive goods</button> }
+            <button class="btn btn-s btn-sm" title="Download PDF" (click)="print(o)"><i class="ti ti-file-type-pdf"></i> Print</button>
           </td></tr>
       } @empty {
         <tr><td colspan="7" style="color:var(--txm)">No purchase orders yet. Click “New Purchase Order” to raise one.</td></tr>
@@ -298,6 +300,7 @@ export class PoComponent {
   private cdr = inject(ChangeDetectorRef);
   private router = inject(Router);
   private auth = inject(AuthStore);
+  private exporter = inject(Exporter);
   all = signal<Po[]>([]); sups = signal<{ code: string; name: string }[]>([]);
   staff = signal<{ code: string; name: string }[]>([]);
   items = signal<{ sku: string; name: string; cost: number }[]>([]);
@@ -391,6 +394,19 @@ export class PoComponent {
     this.cdr.detectChanges();
   }
   receive(o: Po) { this.isOpen.set(false); void this.router.navigate(['/procurement/grn'], { queryParams: { po: o.id } }); }
+  // printPO port (5057) — doc-style PDF through the shared export engine (batch 7)
+  print(o: Po) {
+    const r = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+    const rows = o.lines.map((l, i) => [l.desc, l.qty, o.recv?.[i] ?? '', l.price, l.vat + '%', r(l.qty * l.price)]);
+    this.exporter.download({
+      title: 'Purchase Order — ' + o.id,
+      sections: [
+        { cols: [{ h: 'Purchase order' }, { h: 'Detail' }], rows: [[o.id, 'Status: ' + o.status], [o.supName, 'Ordered: ' + o.date + ' · Delivery by: ' + (o.due || '—')], ['', 'Our reference: ' + (o.ref || '—') + ' · Ordered by: ' + (o.byName || '—')], ['', 'Deliver to: ' + (o.deliver || '—')]], }, // meta block
+        { cols: [{ h: 'Description' }, { h: 'Qty', t: 'i' }, { h: 'Received', t: 'i' }, { h: 'Unit price', t: 'm' }, { h: 'VAT', t: '' }, { h: 'Total (excl)', t: 'm' }], rows, totals: ['Subtotal ' + fmtR(o.tot.ex) + ' · VAT ' + fmtR(o.tot.vat) + ' · Total ' + fmtR(o.tot.inc), '', '', '', '', o.tot.inc] },
+        { cols: [{ h: 'Notes' }], rows: o.notes ? [[o.notes]] : [] },
+      ] as never,
+    }, 'pdf');
+  }
   async del(o: Po) {
     if (!confirm('Delete draft ' + o.id + '?')) return;
     try { await this.api.del('/purchase-orders/' + o.id); await this.reload(); } catch (e) { this.toast.show((e as ApiError).message); }
@@ -416,7 +432,8 @@ const grnVal = (g: Grn) => Math.round(g.lines.reduce((t, l) => t + l.qty * l.pri
       @for (g of list(); track g.id) {
         <tr><td><strong>{{g.id}}</strong></td><td>{{g.po}}</td><td>{{g.supName}}</td><td>{{dayMon(g.date)}}</td><td>{{g.dn || '—'}}</td>
           <td class="tr">{{fmtR(grnVal(g))}}</td>
-          <td>@if (g.inv) { <span class="chip c-ok">{{g.inv}}</span> } @else { <span class="chip c-wn">Not invoiced</span> }</td></tr>
+          <td>@if (g.inv) { <span class="chip c-ok">{{g.inv}}</span> } @else { <span class="chip c-wn">Not invoiced</span> }
+            <button class="btn btn-s btn-sm" title="Download PDF" (click)="print(g)"><i class="ti ti-file-type-pdf"></i></button></td></tr>
       } @empty {
         <tr><td colspan="7" style="color:var(--txm)">No goods received yet. Use “Receive goods” on an approved purchase order, or the button above.</td></tr>
       }
@@ -457,6 +474,7 @@ export class GrnComponent {
   private toast = inject(ToastService);
   private cdr = inject(ChangeDetectorRef);
   private ar = inject(ActivatedRoute);
+  private exporter = inject(Exporter);
   list = signal<Grn[]>([]);
   sups = signal<{ code: string; name: string }[]>([]);
   openPos = signal<{ id: string; label: string }[]>([]);
@@ -484,6 +502,18 @@ export class GrnComponent {
     this.cdr.detectChanges();
   }
   openGRN() { this.f = { sup: '', po: '', date: todayIso(), dn: '', loc: 'Main Warehouse', qty: [] }; this.poLines.set([]); this.err.set(''); this.isOpen.set(true); this.cd(); }
+  // viewGRN port (5344) — doc-style PDF through the shared export engine (batch 7)
+  print(g: Grn) {
+    const po = this.poLines(); // ordered/recv unknown per GRN row here — the GRN lines carry their own values
+    void po;
+    this.exporter.download({
+      title: 'Goods Received Note — ' + g.id,
+      sections: [
+        { cols: [{ h: 'Goods received note' }, { h: 'Detail' }], rows: [[g.id, 'Status: ' + (g.inv ? 'Invoiced' : 'Not invoiced')], [g.supName, 'Date received: ' + g.date + ' · Purchase order: ' + g.po], ['', 'Delivery note: ' + (g.dn || '—') + ' · Received at: ' + (g.loc || '—')], ['', 'Linked supplier invoice: ' + (g.inv || 'not yet invoiced')]] },
+        { cols: [{ h: 'Description' }, { h: 'Received now', t: 'i' }, { h: 'Unit price', t: 'm' }, { h: 'Value (excl VAT)', t: 'm' }], rows: g.lines.map((l) => [l.desc, l.qty, l.price, Math.round(l.qty * l.price * 100) / 100]), totals: ['Total value (excl VAT)', '', '', grnVal(g)] },
+      ] as never,
+    }, 'pdf');
+  }
   async pickSup() {
     this.f.po = '';
     this.poLines.set([]);

@@ -21,8 +21,49 @@ Plan of record: `C:\Users\James\.claude\plans\start-converting-the-app-robust-le
 | 4 | service/work orders (+ inventory parts requests, asset service/dep, svctypes, technicians) | âœ… done on `batch-4/service-workorders` (2026-11-24) |
 | 5 | procurement POs + GRN + asset buy-backs/conversions (glBB/glCV) | âœ… done on `batch-5/procurement-buybacks` (2026-11-25) |
 | 6 | VAT (vat_periods table + assertPostingDate port of checkPostingDate 2791) | ✅ done on `batch-6/vat-periods` (2026-11-26) |
-| 7 | reports/budgets/exports + closing journal + FY totals recompute | |
+| 7 | reports/budgets/exports + closing journal + FY totals recompute | ✅ done on `batch-7/reports-budgets-exports` (2026-11-26) |
 | after | statements/outbox/dashboard KPIs, PAYE, tax calendar, localStorage importer option | deferred |
+
+## Batch 7 — done (2026-11-26)
+
+Branch `batch-7/reports-budgets-exports`. Migration `015_budgets.sql` (budgets table: company_id+fy_id+code unique, months jsonb[12]; financial_years.closing jsonb). Also: `scripts/migrate.mjs` now hashes LF-normalized SQL (all 14 stored checksums were LF; `core.autocrlf=true` checkouts hash CRLF → every run false-ERRORED 'file changed'). Seed fix below.
+
+### What landed
+- **`/api/reports`** (reports.routes.ts, guard `requireCan('reports','rep')` — section-less module like legacy canMod('reports')): GET `/reports/fin?from&to` (per account: opening + movements-before-`from` + in-window + maxDate — the web derives cum/plNet/adj exactly like legacy finModel 5599), GET/PUT/DELETE `/reports/budget` (verbatim strings: 'This financial year is closed.', 'Budget amounts must be zero or more.', 'This financial year is closed.', viewer 403 'You do not have access to this area.'), GET `/reports/assets?month=` (one query serves Asset Register + Depreciation Schedule: doneAll all-time / doneTo ≤ month / postedAmt in month), GET `/reports/stk` (on-hand + pqNet issued + value).
+- **Read-guard widening** (`requireCanEither` in middleware): list endpoints a reports holder may read — /purchase-orders, /grns, /supplier-invoices, /parts/requests, /parts/returns, /vat/periods + /vat/detail (GETs only; writes unchanged). Legacy reports read all module DATA. `/vat/periods` response now carries `outEx`/`inEx` for the VAT201 panel.
+- **fys.routes.ts**: GET /fys recomputes **open-year income/expenses** from journal_lines (groups 1/3 = income as credit-normal, 2/4 = expenses; closed years keep the frozen `closing` snapshot). Close now materializes the **CLS-YYYY-YY journal** (src_type 'fyclose', dated fy.end, bypasses checkPostingDate — system posting): Dr income accounts, Cr expense accounts, net to 7010; zero-activity years record closing with no journal (postJournal refuses empty). `closing` snapshot {ref,income,expenses,net} + history note 'Closing journal CLS-… · net profit R…'. **Open-batch closeCheck wired** (journals src_type='batch' status='Open' dated in FY → 'N open (unposted) batch(es) dated in this year: …. Post them first.'). **Batch-1 handover bug fixed** — close set is_current=false on the NEXT year and never cleared the closed one; now legacy 2838 semantics. Reopen deletes the CLS journal + lines and notes '· closing journal <ref> reversed'. Delete-FY blocks when computed totals ≠ 0 (legacy compared its stored seeds, which were always 0 for open years — see deviations).
+- **Web `core/export.ts`**: verbatim port of the export engine (zipStore/buildXlsx/buildPdf/buildCsv, HW width table, CP glyph map, fileBase naming). `Exporter` service takes {title, sections:[{cols,rows,totals}]} — REPDATA semantics (4084).
+- **Web `pages/reports/reports.pages.ts`**: one component for all 22 tabs (route data), shared VTable renderer (sec/tt/tg rows, dash-for-zero cells), FIN filter bar port (fy select/from/to shared across tb+pl+bs like legacy FIN, plus TB Balances mov-only + Show non-zero toggles), budget editor (annual spread budSpread 4421 verbatim, net row, save/clear/confirm), and every other panel ported: TB/PL/BS, VAT201 + VAT Period Summary (from /vat/periods), Financial Years Summary (from /fys), Asset Register + Depreciation, Contract Schedule, Contract Billing, Meter Usage, Service Calls, Work Orders, Sales by Customer, Purchase Orders, Goods Received, Supplier Invoices, Part Requests, Part Returns, Stock on Hand. Export buttons (PDF/Excel/CSV) on every panel.
+- **ModTabsComponent** now takes optional `secLabels` in route data and derives the section bar from the tabs' own keys (`fin/stat/ops/bud` for reports) — previously secs() hard-coded the legacy four keys and every custom-keyed module rendered without its section bar.
+- **YearsComponent**: close dialog port (openCloseFY 2889): Open-Batch + earlier-year + year-end checks, closing journal preview (per-account lines + 'Net profit/loss of … moves to Retained Earnings.'), confirm checkbox ('Tick the box to confirm.'), toast 'FY … closed.'; Income/Expenses/Net columns live.
+- **Parked doc exports landed**: svExport ports (WO list + WIP list buttons) and PO Print / GRN PDF doc buttons via the export engine.
+
+### Gates — tsc api + web green; ng build 817.8 kB initial (budget raised 750→850 kB)
+
+### Validated (Playwright direct script — MCP plugin not used; scripts deleted before commit) — 41 API + ~53 browser checks, all green on final pass
+- **API**: /reports/fin shapes + FY-scoped window, budget round-trip + verbatim errors + viewer/thabo 403s, VAT periods outEx/inEx via reports holder, open-batch closeCheck verbatim + clear-then-close, close-preview checks + journal lines (Dr 1000 / Cr 4000) + RE note, close → CLS-2024-25 materialized + snapshot frozen + closed-FY posting blocked verbatim, reopen → journal deleted + figures recomputed (200/200), delete guard, widened reads for pieter (PO/GRN/sinv/preq/pret/vat 200, writes 403).
+- **Browser**: admin fresh seed → change-pw → picker → dashboard; TB 43 grouped rows + balanced line 'Total Debits = Total Credits = R 2 912 100', non-zero + movements modes, CSV/PDF/XLSX downloads (byte-checked: PK zip / %PDF-1.4 … %%EOF); PL totals; **BS balances at R 2 356 900 = legacy demo figure**; VAT201 vendor/box rows + Closed · Submitted periods; fyr table; budget grid → annual 120 000 spreads to 12 × 10 000 → save toast → BvA rows with variance; all 14 ops panels render (or verbatim 'Nothing to report for these filters.'); years close dialog checks + preview + unticked verbatim + close/reopen toasts; pieter/thabo deny paths (sidebar links hidden, deep-link → dashboard + 'You do not have access to this area.', /reports 403s).
+
+### Bugs found & fixed during validation
+- **Seed opening balances were not a balanced signed TB** (batch-1): credit-side accounts stored as positive display values and groups 4030–4070 were zeroed — Σ exactly 21 400 out vs the legacy hand table → restored the five legacy values (9 500/5 000/2 500/1 200/3 200); the fin model also side-normalizes opening balances like glEnqSync 5588 (dr-normal = digit 2/4/5/6, flip credit-side once). BS/TB now balance; storage unchanged (display-normal) so batch-1/2 consumers keep their behavior.
+- **pg Client.query unbound**: passing `c.query` (bound param of `typeof q`) crashed `this._Promise` — must `c.query.bind(c)` when handing tx clients around unbound.
+- `assets.cust` → `cust_code` (42703) in /reports/assets; `/parts/returns` returns `{rows, issued}` (needed unwrap, `slice` on object crashed the panel).
+- **Zoneless 'Should be run in update mode'** — calling `cdr.detectChanges()` in an await-continuation throws in Angular 22; removed every call in the reports component (signals render), plus a `budBump()` shallow-copy helper for same-ref signal bumps. Batch pages that still do this work today — but don't add new ones inside microtasks.
+- **ModTabs secs() bug** (above) — also explains the reports sec-bar never rendering.
+- Totals rows now only render when data rows exist (legacy repTable 4089 rule); empty tables show 'Nothing to report for these filters.'
+
+### Deviations / notes
+- **Tax Computation report deferred with PAYE/taxcal** (tab marked ready:false).
+- Close preview lists the **per-account** closing lines that will post (legacy preview showed aggregate rows labelled 'Income accounts (4xxx)'/'Expense accounts (5xxx)' — the digits don't match this COA and the aggregated journal was never materialized in legacy; per-account preview is the truthful port).
+- `exportDom` (export arbitrary on-screen DOM tables) not ported — every panel exports via its REPDATA section instead.
+- Export engine keeps client-side zip/pdf bytes; no server involvement, no activity-log row for exports (legacy logged 'Report exported'; hook up via an API call later if wanted).
+- BvA 'Actual' reads the all-time account balance (legacy actualOf 4440), sign-normalized per side.
+- Ops-report reads ride widened module list endpoints (read-only) — viewer sees every ops panel it has module access for; procurement/inventory-trans reports are visible to reports holders only.
+- Budget PUT with an unknown fy id falls back to the default FY (legacy keyed BUD by FY-id selects; UI only offers real FYs).
+- Meter Usage panel: Opening column reads /billing/meters `opening` (legacy u.op).
+
+### Demo DB state
+Wiped back to clean seed after validation (`reset-demo` + `seed`). Seed passwords: admin `Admin@2025` (must_change pending — clear via browser change-pw on first login), nomsa/thabo/pieter `Nomsa@2025`/`Thabo@2025`/`Pieter@2025`. Budgets empty; no FY closures (CLS journal deleted with the reopen cycle; validation artifacts wiped).
 
 ## Batch 6 — done (2026-11-26)
 

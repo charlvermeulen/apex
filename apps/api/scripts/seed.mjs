@@ -27,11 +27,11 @@ const DEMO_COA = Object.fromEntries([
   ['4000', 'Salaries & Wages', 'Expense', '—', 92400, false],
   ['4010', 'Rent & Occupancy', 'Expense', '01', 24000, false],
   ['4020', 'Depreciation', 'Expense', '—', 18600, false],
-  ['4030', 'Utilities', 'Expense', '01', 0, false],
-  ['4040', 'Telecoms', 'Expense', '01', 0, false],
-  ['4050', 'Office Supplies', 'Expense', '01', 0, false],
-  ['4060', 'Bank Charges', 'Expense', '—', 0, false],
-  ['4070', 'Insurance', 'Expense', '—', 0, false],
+  ['4030', 'Utilities', 'Expense', '01', 9500, false],
+  ['4040', 'Telecoms', 'Expense', '01', 5000, false],
+  ['4050', 'Office Supplies', 'Expense', '01', 2500, false],
+  ['4060', 'Bank Charges', 'Expense', '—', 1200, false],
+  ['4070', 'Insurance', 'Expense', '—', 3200, false],
   ['4080', 'Bad Debts Written Off', 'Expense', '—', 0, false],
 ].map((r) => [r[0], r]));
 const SYS = ['6000','6010','6100','6200','6210','5020','6300','5000','5010','9000','9100','7010','1000','2000','4020'];

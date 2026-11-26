@@ -20,6 +20,7 @@ import { ContractsListComponent, ContractFormComponent } from './pages/contracts
 import { CbRunComponent, CbMetersComponent, CbPeriodsComponent, CbEscComponent, CbHistComponent, CustCinvComponent } from './pages/billing/billing.pages';
 import { SvCallsComponent, SvReqsComponent, SvWoComponent, SvWipComponent, SvSlaComponent } from './pages/service/service.pages';
 import { VatComponent } from './pages/vat/vat.pages';
+import { ReportsComponent } from './pages/reports/reports.pages';
 import {
   SettingsComponent, CompanyTaxComponent, YearsComponent, CompaniesTabComponent,
   UsersComponent, RolesComponent, EmailComponent, LogComponent, SitypesComponent,
@@ -93,6 +94,35 @@ const vatTabs: ModTab[] = [
   { label: 'Detail', path: '/vat/detail', sec: 'maint', icon: 'ti-list-details' },
   { label: 'VAT Periods', path: '/vat/periods', sec: 'maint', icon: 'ti-calendar' },
 ];
+
+// legacy reports groups (REP_GROUP 1890) drive the section bar; Tax Computation arrives with PAYE
+const repTabs: ModTab[] = [
+  { label: 'Trial Balance', path: '/reports/tb', sec: 'fin', icon: 'ti-scale' },
+  { label: 'Income Statement', path: '/reports/pl', sec: 'fin', icon: 'ti-chart-line' },
+  { label: 'Balance Sheet', path: '/reports/bs', sec: 'fin', icon: 'ti-building-bank' },
+  { label: 'VAT201 Return', path: '/reports/vat', sec: 'stat', icon: 'ti-percentage' },
+  { label: 'VAT Period Summary', path: '/reports/vper', sec: 'stat', icon: 'ti-calendar-stats' },
+  { label: 'Tax Computation', path: '/reports/tax', sec: 'stat', icon: 'ti-calculator', ready: false },
+  { label: 'Financial Years', path: '/reports/fyr', sec: 'stat', icon: 'ti-calendar-event' },
+  { label: 'Budget', path: '/reports/bud', sec: 'bud', icon: 'ti-pencil-dollar' },
+  { label: 'Budget vs Actual', path: '/reports/bva', sec: 'bud', icon: 'ti-chart-infographic' },
+  { label: 'Asset Register', path: '/reports/assets', sec: 'ops', icon: 'ti-tool' },
+  { label: 'Depreciation', path: '/reports/dep', sec: 'ops', icon: 'ti-trending-down' },
+  { label: 'Contract Schedule', path: '/reports/con', sec: 'ops', icon: 'ti-file-certificate' },
+  { label: 'Contract Billing', path: '/reports/bill', sec: 'ops', icon: 'ti-receipt-2' },
+  { label: 'Meter Usage', path: '/reports/meter', sec: 'ops', icon: 'ti-printer' },
+  { label: 'Service Calls', path: '/reports/calls', sec: 'ops', icon: 'ti-headset' },
+  { label: 'Work Orders', path: '/reports/wo', sec: 'ops', icon: 'ti-clipboard-list' },
+  { label: 'Sales by Customer', path: '/reports/sales', sec: 'ops', icon: 'ti-chart-bar' },
+  { label: 'Purchase Orders', path: '/reports/po', sec: 'ops', icon: 'ti-shopping-cart' },
+  { label: 'Goods Received', path: '/reports/grn', sec: 'ops', icon: 'ti-package' },
+  { label: 'Supplier Invoices', path: '/reports/sinv', sec: 'ops', icon: 'ti-file-invoice' },
+  { label: 'Part Requests', path: '/reports/preq', sec: 'ops', icon: 'ti-package-export' },
+  { label: 'Part Returns', path: '/reports/pret', sec: 'ops', icon: 'ti-package-import' },
+  { label: 'Stock on Hand', path: '/reports/stk', sec: 'ops', icon: 'ti-box' },
+];
+const repChildren = repTabs.map((t) => ({ path: t.path.split('/').pop()!, component: ReportsComponent, data: { tab: t.path.split('/').pop()! } }));
+repChildren.unshift({ path: '', pathMatch: 'full', redirectTo: 'tb' } as never);
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -234,6 +264,12 @@ export const routes: Routes = [
           { path: 'detail', component: VatComponent, data: { mod: 'vat', tab: 'detail' }, canActivate: [canSecGuard] },
           { path: 'periods', component: VatComponent, data: { mod: 'vat', tab: 'periods' }, canActivate: [canSecGuard] },
         ],
+      },
+      {
+        path: 'reports', component: ModTabsComponent,
+        data: { mod: 'reports', title: 'Reports & Budgets', sub: 'IFRS for SMEs · SARS', tabs: repTabs, secLabels: { fin: 'Financial Reports', stat: 'Statutory Reports', ops: 'Operation Reports', bud: 'Budgets' } },
+        canActivate: [canSecGuard],
+        children: repChildren,
       },
       {
         path: 'settings', component: SettingsComponent, data: { mod: 'settings' }, canActivate: [canSecGuard],

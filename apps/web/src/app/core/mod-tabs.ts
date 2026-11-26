@@ -15,7 +15,7 @@ export interface ModTab { label: string; path: string; sec: string; ready?: bool
   @if (secs().length > 1) {
     <div class="sec-bar">
       @for (s of secs(); track s.key) {
-        <button class="sec-btn" [class.active]="s.key === sec()" (click)="goSec(s.key)"><i class="ti" [class]="s.icon"></i> {{SECN[s.key]}}</button>
+        <button class="sec-btn" [class.active]="s.key === sec()" (click)="goSec(s.key)"><i class="ti" [class]="s.icon"></i> {{label(s.key)}}</button>
       }
     </div>
   }
@@ -36,15 +36,17 @@ export class ModTabsComponent {
   private router = inject(Router);
   private auth = inject(AuthStore);
 
-  d = () => this.ar.snapshot.data as { mod: string; title: string; sub: string; tabs: ModTab[] };
-  icon = (s: string) => ({ maint: 'ti-settings', trans: 'ti-arrows-exchange', enq: 'ti-search', rep: 'ti-chart-bar' })[s] ?? '';
+  d = () => this.ar.snapshot.data as { mod: string; title: string; sub: string; tabs: ModTab[]; secLabels?: Record<string, string> };
+  label = (s: string) => this.d().secLabels?.[s] ?? this.SECN[s] ?? s;
+  icon = (s: string) => ({ maint: 'ti-settings', trans: 'ti-arrows-exchange', enq: 'ti-search', rep: 'ti-chart-bar', fin: 'ti-scale', stat: 'ti-file-certificate', ops: 'ti-tool', bud: 'ti-pencil-dollar' })[s] ?? '';
 
-  // sections with at least one tab the role may see (access map hides whole secs for viewer)
+  // sections with at least one tab the role may see — distinct tab keys in tab order
+  // (standard modules use the legacy four; custom modules like reports use their own group keys)
   secs = computed(() => {
     void this.router.url;
     const mod = this.d().mod;
     const seen = new Set(this.d().tabs.filter((t) => t.ready !== false && this.auth.canSec()(mod, t.sec)).map((t) => t.sec));
-    return ['maint', 'trans', 'enq', 'rep'].filter((s) => seen.has(s)).map((key) => ({ key, icon: this.icon(key) }));
+    return [...seen].map((key) => ({ key, icon: this.icon(key) }));
   });
 
   sec = () => { const p = this.router.url; return this.d().tabs.find((t) => p.startsWith(t.path))?.sec ?? this.secs()[0]?.key; };

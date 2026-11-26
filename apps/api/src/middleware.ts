@@ -73,5 +73,15 @@ export const requireCan = (mod: string, sec: string) =>
       ? next()
       : next(new ApiError(403, 'You do not have access to this area.'));
 
+// Either-of guards for read endpoints a reports holder may read (legacy reports read ALL module data
+// straight from DATA — the viewer with reports access sees every report panel).
+export const requireCanEither = (...checks: [mod: string, sec: string][]) => {
+  const allowed = (u: { role: Role; overrides: AccessMap | null }) => checks.some(([m, s]) => aclCanSec(u, m, s));
+  return (req: AuthedReq, res: Response, next: NextFunction) =>
+    req.user && allowed({ role: req.user.role, overrides: req.user.overrides })
+      ? next()
+      : next(new ApiError(403, 'You do not have access to this area.'));
+};
+
 // convenience for reading
 export const effAccess = (u: CtxUser) => accOf({ role: u.role, overrides: u.overrides });

@@ -114,7 +114,7 @@ export class CompanyTaxComponent {
   }
 }
 
-interface FY { id: string; name: string; start: string; end_date: string; status: string; is_current: boolean; closed_at?: string; history: { t: number; user: string; action: string; note: string }[]; }
+interface FY { id: string; name: string; start: string; end_date: string; status: string; is_current: boolean; income: number; expenses: number; closed_at?: string; history: { t: number; user: string; action: string; note: string }[]; }
 
 // Financial years (set-years port). Income/Expenses/Net Profit read '—' until the report batch.
 @Component({
@@ -141,10 +141,10 @@ interface FY { id: string; name: string; start: string; end_date: string; status
             <td>{{fy.name}} @if (fy.is_current) { <span class="chip c-bl">Current</span> }</td>
             <td>{{d(fy.start)}} – {{d(fy.end_date)}}</td>
             <td><span class="chip" [class.c-ok]="fy.status==='open'" [class.c-gr]="fy.status==='closed'">{{fy.status==='open'?'Open':'Closed'}}</span></td>
-            <td class="tr">—</td><td class="tr">—</td><td class="tr">—</td>
+            <td class="tr">{{fmtR(fy.income)}}</td><td class="tr">{{fmtR(fy.expenses)}}</td><td class="tr">{{netStr(fy)}}</td>
             <td>
               @if (fy.status === 'open') {
-                <button class="btn btn-s btn-sm" (click)="close(fy)"><i class="ti ti-lock"></i> Close</button>
+                <button class="btn btn-s btn-sm" (click)="openClose(fy)"><i class="ti ti-lock"></i> Close</button>
                 @if (!fy.is_current) { <button class="btn btn-s btn-sm" (click)="setCurrent(fy)">Set current</button> }
                 <button class="btn btn-s btn-sm" (click)="del(fy)"><i class="ti ti-trash"></i></button>
               } @else {
@@ -152,6 +152,24 @@ interface FY { id: string; name: string; start: string; end_date: string; status
               }
             </td>
           </tr>
+          @if (closeOpen() === fy) {
+            <tr><td colspan="7">
+              <!-- openCloseFY/doCloseFY dialog (legacy 2889–2902): checks + closing journal preview + confirm -->
+              <div class="card" style="margin:0"><div class="card-title">Close {{fy.name}}</div>
+                @for (c of closePreview()?.checks ?? []; track c.text) {
+                  <div class="chk"><i class="ti" [class]="c.ok ? 'ti-circle-check' : (c.block ? 'ti-circle-x' : 'ti-alert-triangle')" [style.color]="c.ok ? 'var(--ok)' : (c.block ? 'var(--dn)' : 'var(--wn)')"></i><span>{{c.text}}</span></div>
+                }
+                @if (closePreview(); as p) {
+                  <table style="margin-top:12px"><thead><tr><th>Account</th><th class="tr">Debit</th><th class="tr">Credit</th></tr></thead>
+                  <tbody>@for (l of p.journal; track l.acc) { <tr><td>{{l.acc}} — {{l.name}}</td><td class="tr">@if (l.dr) { {{fmtR(l.dr)}} }</td><td class="tr">@if (l.cr) { {{fmtR(l.cr)}} }</td></tr> }</tbody></table>
+                  <div style="font-size:12px;color:var(--txm);margin-top:6px">Net {{p.net >= 0 ? 'profit' : 'loss'}} of {{fmtR(abs(p.net))}} moves to Retained Earnings.</div>
+                }
+                <div class="fg" style="margin-top:12px"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" [(ngModel)]="closeConfirm" style="width:auto"> I confirm I want to close {{fy.name}}</label></div>
+                <div class="form-err" [style.display]="cerr()?'block':'none'">{{cerr()}}</div>
+                <div class="btn-grp" style="margin-top:10px"><button class="btn btn-p" (click)="close(fy)">Close year</button>
+                <button class="btn btn-s" (click)="closeOpen.set(null)">Cancel</button></div></div>
+            </td></tr>
+          }
           @if (reopenOpen() === fy) {
             <tr><td colspan="7">
               <div class="card" style="margin:0"><div class="card-title">Reopen {{fy.name}}</div>
@@ -172,14 +190,28 @@ export class YearsComponent {
 
   fys = signal<FY[]>([]);
   addOpen = signal(false); reopenOpen = signal<FY | null>(null);
+  // close dialog (legacy openCloseFY 2889)
+  closeOpen = signal<FY | null>(null); closePreview = signal<null | { checks: { ok: boolean; block: boolean; text: string }[]; journal: { acc: string; name: string; dr: number; cr: number }[]; net: number }>(null);
+  closeConfirm = false; cerr = signal('');
   nf = { name: '', start: '', end: '' };
   reopenReason = ''; busy = signal(false); err = signal('');
+  fmtR = fmtR; 
+  abs = Math.abs;
 
   constructor() { void this.reload(); }
   async reload() {
     this.fys.set(await this.api.get<FY[]>('/fys'));
     this.err.set('');
   }
+
+  // openCloseFY port 2889: checks + closing journal preview
+  async openClose(fy: FY) {
+    this.cerr.set(''); this.closeConfirm = false;
+    try { this.closePreview.set(await this.api.get('/fys/' + fy.id + '/close-preview')); this.closeOpen.set(fy); }
+    catch (e) { this.toast.show((e as ApiError).message); }
+  }
+
+  netStr = (fy: FY) => { const net = (fy.income || 0) - (fy.expenses || 0); return (net < 0 ? '−' : '') + fmtR(Math.abs(net)); }; // renderFY 2859
 
   async add() {
     this.busy.set(true); this.err.set('');
@@ -193,12 +225,14 @@ export class YearsComponent {
   }
 
   async close(fy: FY) {
+    if (!this.closeConfirm) { this.cerr.set('Tick the box to confirm.'); return; } // doCloseFY 2899
     this.busy.set(true);
     try {
       await this.api.post('/fys/' + fy.id + '/close');
+      this.closeOpen.set(null);
       await this.reload();
       this.toast.show(fy.name + ' closed.');
-    } catch (e) { this.toast.show((e as ApiError).message); }
+    } catch (e) { this.cerr.set((e as ApiError).message); }
     finally { this.busy.set(false); }
   }
 
@@ -752,7 +786,8 @@ export class EmailComponent {
     </tbody></table></div>`,
 })
 export class SitypesComponent {
-  fmtR = fmtR;
+  fmtR = fmtR; 
+  abs = Math.abs;
   private api = inject(ApiService);
   private toast = inject(ToastService);
   private cdr = inject(ChangeDetectorRef);

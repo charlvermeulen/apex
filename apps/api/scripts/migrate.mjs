@@ -22,7 +22,10 @@ const applied = new Map(
 );
 
 for (const f of files) {
-  const sql = readFileSync(path.join(dir, f), 'utf8');
+  // EOL-independent checksum: core.autocrlf=true checkouts give CRLF while the repo (and the
+  // DB checksums applied before that) is LF — normalize so a checkout difference never reads as an edit.
+  const sql = readFileSync(path.join(dir, f), 'utf8').replace(/\r\n/g, '\n');
+  // (new files get the normalized checksum recorded too, so the DB stays LF-based)
   const checksum = createHash('sha256').update(sql).digest('hex');
   if (applied.has(f)) {
     if (applied.get(f) !== checksum) {

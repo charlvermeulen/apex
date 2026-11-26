@@ -3,6 +3,7 @@
 import { Component, ChangeDetectorRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService, ApiError, ToastService } from '../../core/api';
+import { Exporter } from '../../core/export';
 import { fmtR, fmtD, fmtDMY, todayIso } from '../../core/fmt';
 
 const dayAdd = (iso: string, n: number) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); const p = (x: number) => String(x).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
@@ -334,7 +335,11 @@ export class SvReqsComponent {
     <div class="card"><div class="stat-lbl">Parts used (excl VAT)</div><div class="stat-val">{{partsUsed()}}</div></div></div>
   <div class="card">
     <div class="card-title"><span>Work Orders</span>
-      <span style="display:flex;gap:6px"><button class="btn btn-p btn-sm" (click)="openWo(null)">New Work Order</button></span></div>
+      <span style="display:flex;gap:6px">
+        <button class="btn btn-s btn-sm" title="Export PDF" (click)="export('pdf')"><i class="ti ti-file-type-pdf"></i></button>
+        <button class="btn btn-s btn-sm" title="Export Excel" (click)="export('xlsx')"><i class="ti ti-file-spreadsheet"></i></button>
+        <button class="btn btn-s btn-sm" title="Export CSV" (click)="export('csv')"><i class="ti ti-file-text"></i></button>
+        <button class="btn btn-p btn-sm" (click)="openWo(null)">New Work Order</button></span></div>
     <div class="fr3" style="margin-bottom:8px">
       <div class="fg"><label>Search</label><input [(ngModel)]="q" placeholder="Work order, call, customer"></div>
       <div class="fg"><label>Status</label><select [(ngModel)]="f"><option value="">All</option><option value="open">Open (not completed)</option>
@@ -394,6 +399,15 @@ export class SvReqsComponent {
 })
 export class SvWoComponent {
   fmtR = fmtR; fmtD = fmtD; fmtDMY = fmtDMY; SV_CHIP = SV_CHIP; OPEN = (s: string) => WO_OPEN.includes(s);
+  private exporter = inject(Exporter);
+  // svExport('wo') port 4599
+  export(fmt: 'pdf' | 'xlsx' | 'csv') {
+    this.exporter.download({
+      title: 'Work Orders',
+      sections: [{ cols: [{ h: 'Work order' }, { h: 'Call' }, { h: 'Customer' }, { h: 'Asset' }, { h: 'Technician' }, { h: 'Scheduled', t: 'd' }, { h: 'Hours', t: 'i' }, { h: 'Parts', t: 'm' }, { h: 'Status' }],
+        rows: this.wos().slice().sort((a, b) => a.code.localeCompare(b.code)).map((w) => [w.code, w.call, w.custName, w.asset, w.techName || '', w.sched || '', w.hours, w.partsCost, w.status]) }],
+    }, fmt);
+  }
   woStatuses = ['Issued', 'In progress', 'Completed', 'Cancelled'];
   private api = inject(ApiService);
   private toast = inject(ToastService);
@@ -517,7 +531,11 @@ ${w.status === 'Completed' ? `<div class="g">Work done (${fmtDMY(w.completed || 
     <div class="card"><div class="stat-lbl">Past resolution SLA</div><div class="stat-val">{{breached()}}</div></div>
     <div class="card"><div class="stat-lbl">Parts to date (excl VAT)</div><div class="stat-val">{{fmtR(partsTot())}}</div></div></div>
   <div class="card">
-    <div class="card-title"><span>Work In Progress</span></div>
+    <div class="card-title"><span>Work In Progress</span>
+      <span style="display:flex;gap:6px">
+        <button class="btn btn-s btn-sm" title="Export PDF" (click)="export('pdf')"><i class="ti ti-file-type-pdf"></i></button>
+        <button class="btn btn-s btn-sm" title="Export Excel" (click)="export('xlsx')"><i class="ti ti-file-spreadsheet"></i></button>
+        <button class="btn btn-s btn-sm" title="Export CSV" (click)="export('csv')"><i class="ti ti-file-text"></i></button></span></div>
     <div style="font-size:12px;color:var(--txm);margin-bottom:8px">Service calls that have been assigned or started and are not yet completed, with their open work orders, age and SLA position.</div>
     <table><thead><tr><th>Call</th><th>Customer / asset</th><th>Technician</th><th>Work order</th><th class="tr">Age (days)</th><th class="tr">Hours</th><th class="tr">Parts (excl VAT)</th><th>SLA</th><th>Status</th></tr></thead><tbody>
       @for (r of wip().rows; track r.call.code) {
@@ -543,10 +561,19 @@ ${w.status === 'Completed' ? `<div class="g">Work done (${fmtDMY(w.completed || 
 export class SvWipComponent {
   fmtR = fmtR; SV_CHIP = SV_CHIP; slaChip = slaChip; cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
+  private exporter = inject(Exporter);
   data = signal<{ rows: WipRow[]; techRows: TechRow[]; openWos: number }>({ rows: [], techRows: [], openWos: 0 });
   breached = () => this.data().rows.filter((r) => r.sla.reso === 'Breached').length;
   partsTot = () => this.data().rows.reduce((t, r) => t + r.parts, 0);
   wip = this.data;
+  // svExport('wip') port 4600
+  export(fmt: 'pdf' | 'xlsx' | 'csv') {
+    this.exporter.download({
+      title: 'Work In Progress',
+      sections: [{ cols: [{ h: 'Call' }, { h: 'Customer' }, { h: 'Asset' }, { h: 'Technician' }, { h: 'Work order' }, { h: 'Age (days)', t: 'i' }, { h: 'Hours', t: 'i' }, { h: 'Parts', t: 'm' }, { h: 'Resolution SLA' }, { h: 'Status' }],
+        rows: this.data().rows.map((r) => [r.call.code, r.call.custName, r.call.asset || '', r.call.techName || '', r.ow ? r.ow.code + ' (' + r.ow.status + ')' : '', r.age, r.hours, r.parts, r.sla.reso, r.call.status]) }],
+    }, fmt);
+  }
   constructor() {
     void this.api.get<{ rows: WipRow[]; techRows: TechRow[]; openWos: number }>('/wip')
       .then((d) => { this.data.set(d); this.cdr.detectChanges(); });
