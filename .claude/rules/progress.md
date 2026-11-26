@@ -20,9 +20,41 @@ Plan of record: `C:\Users\James\.claude\plans\start-converting-the-app-robust-le
 | 3 | contracts + billing (+Employees, minimal assets) | âœ… done on `batch-3/contracts-billing` (2026-11-24) |
 | 4 | service/work orders (+ inventory parts requests, asset service/dep, svctypes, technicians) | âœ… done on `batch-4/service-workorders` (2026-11-24) |
 | 5 | procurement POs + GRN + asset buy-backs/conversions (glBB/glCV) | âœ… done on `batch-5/procurement-buybacks` (2026-11-25) |
-| 6 | VAT (vat_periods table + assertPostingDate port of checkPostingDate 2791) | |
+| 6 | VAT (vat_periods table + assertPostingDate port of checkPostingDate 2791) | ✅ done on `batch-6/vat-periods` (2026-11-26) |
 | 7 | reports/budgets/exports + closing journal + FY totals recompute | |
 | after | statements/outbox/dashboard KPIs, PAYE, tax calendar, localStorage importer option | deferred |
+
+## Batch 6 — done (2026-11-26)
+
+Branch `batch-6/vat-periods`. Migrations `013_vat_periods.sql` (vat_periods: id='YYYY-MM' start month, start/end_date, status, closed_at/closed_by, submitted_at, snap jsonb; FK to companies) and `014_vat_period_id_regex.sql` (013 shipped `\\d{4}` in the check-constraint regex → any valid id failed `vat_periods_id_check`; 014 drops/re-adds it correctly. Checksum lock: never edit a migration file — the 013 edit was reverted before commit).
+
+### What landed
+- **`vat_periods`**: seeded per company (vatDefaults port, bi-monthly, shifted to the demo timeline: 2025-07/08 closed+submitted · 2025-09/10 closed+submitted · 2025-11/12 open; closes by 'system').
+- **`checkPostingDate` (posting.ts)** now also rejects dates inside a **closed VAT period**, verbatim port (3976): 'The VAT period Sep/Oct 2025 is closed, so documents dated 15 Oct 2025 cannot be posted. Reopen it under VAT Returns → VAT Periods.' — every posting route already awaits it, so one edit covers GL journals/batches, SI, CN, receipts, PI, DN, billing run, stock adjust, asset add/dispose/convert/buy-back, depreciation.
+- **vat.routes.ts** (flat under /api, guarded `requireCan('vat','*')` — the vat module is section-less; admin+accountant only): GET `/vat/periods` (figures computed in one pass over the five doc sources, snap used when closed), GET `/vat/detail?id=` (doc rows + totals), POST `/vat/periods` (addVatPeriod order verbatim: month regex → "The next period must start on <d>." → overlap), POST `.../close` (verbatim: '…can only be closed after it has ended.' → 'Close X first. VAT periods close oldest first.', freezes snap), POST `.../reopen` (admin-only string verbatim; submitted → SARS block; latest-closed-only), POST `.../submit` (recorded-only SARS submission).
+- **Web** `pages/vat/vat.pages.ts`: one VatComponent hosting Dashboard/Detail/VAT Periods by route data tab (ModTabs tabs, all sec 'maint' since the legacy vat module has no sections). Dashboard: Net VAT Payable tile + VAT301 1A/1B/1C/1D/2A rows + effective rate + due date + company VAT no. Detail: doc list with box 1A/2A + Output/Input totals. Periods: add form locked to the month after the latest period, Close/Reopen/View actions, Submit to SARS button disabled until closed & unsubmitted.
+
+### Gates — tsc api + web green; ng build 742.91 kB initial (budget 750 kB)
+
+### Validated (Playwright direct script — MCP plugin failed again this session; deleted before commit) — ~20 API + 24 browser checks, all green
+- **API**: figures (SI 4 750/712,50 → box 1A, net 712,50), verbatim block on GL journal dated in closed period AND on SI capture, close-after-403s, close again 400 'This VAT period is not open.', add-period 'must start on' guard, close-oldest-first guard, reopen latest-only (via chain), reopen by non-admin verbatim, submitted reopen block, submit-when-open block, re-submit 409, thabo (no vat access) GET/POST 403 generic deny.
+- **Browser**: login → change-pw → picker → dashboard; sidebar VAT Returns live for admin; /vat/dash VAT301 with figures + VAT No. from company profile; picker flips closed period w/ frozen snap chips; /vat/detail SI row (1A, Woolworths, VAT no, totals rows); periods table 3 rows + due dates; add input locked at 2026-01 with 'Starts (follows the last period)'; close confirm → toast 'VAT period closed.' + chip flip; reopen confirm → toast + figures recalc; Submit to SARS → toast 'Recorded as submitted…' + Submitted chip; reopen after submit → verbatim alert 'This period has been submitted to SARS and cannot be reopened.'; thabo: no vat sidebar link + /vat deep-link denied → dashboard.
+
+### Bugs found & fixed during validation
+- **`perLastOfMonth` takes a YYYY-MM** — I passed a full date on add (`addMonths(st,len-1)`) → 500 'Invalid time value'; add `.slice(0,7)` first (same family as legacy 4049 which slices explicitly).
+- **Add-form lock read the wrong end of a desc-sorted list** — `ps[ps.length-1]` is the OLDEST period; legacy pops the asc-sorted last (the LATEST). Fixed to `ps[0]`.
+- 013 regex escape (above).
+
+### Deviations / notes
+- **VAT figures use the stored `excl`/`vat` columns** (rewrite source of truth) instead of legacy's derive-from-total (`incl×15/115`); identical numbers for Standard 15% docs. Divergence: a zero-rated credit note's VAT input legacy computed from the total; rewrite reports 0 (correct SA treatment). Flag before batch 7.
+- Legacy `logEv('Posting blocked', …)` on rejected dates NOT ported — checkPostingDate runs inside the posting tx without the user context; the blocked attempt still returns the verbatim string. Add a log hook in a later batch if the activity trail matters.
+- New server guards with no legacy equivalent (legacy relied on UI-only paths): 'No such VAT period.', 'This VAT period is not open.', 'Choose valid period length — 1 (monthly), 2 (bi-monthly) or 6 (six-monthly).', re-submit 409 'This period has already been submitted.' (legacy submitVat returned silently).
+- VAT201 report panel + VAT Period Summary report stay with batch 7 (export engine).
+- Submit records a manual submission only (prototype is not connected to SARS eFiling — same as legacy confirm text).
+- POST /vat/periods requires `{m, len}`; length 1/2/6 only (legacy select).
+
+### Demo DB state
+Wiped back to clean seed after validation (`reset-demo` + `seed` reproduce; seed now inserts the three VAT periods above). Seed passwords: admin `Admin@2025` (+ browser change-pw clears must_change), nomsa/thabo/pieter `Nomsa@2025`/`Thabo@2025`/`Pieter@2025` with must_change pending.
 
 ## Batch 5 — done (2026-11-25)
 

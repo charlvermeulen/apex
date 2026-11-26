@@ -61,7 +61,14 @@ export const postJournal = async (
   return id;
 };
 
-// Port of checkPostingDate (legacy 2791–2799) — VAT-period check lands with batch 6.
+// Port of vatLabel (legacy 3979): 'Jan/Feb 2025' within one year, 'Oct 2024 – Jan 2025' across.
+export const vatLabel = (st: string, en: string): string => {
+  const a = st.slice(5, 7), b = en.slice(5, 7), ya = st.slice(0, 4), yb = en.slice(0, 4);
+  if (st.slice(0, 7) === en.slice(0, 7)) return `${MONS[+a - 1]} ${ya}`;
+  return ya === yb ? `${MONS[+a - 1]}/${MONS[+b - 1]} ${ya}` : `${MONS[+a - 1]} ${ya} – ${MONS[+b - 1]} ${yb}`;
+};
+
+// Port of checkPostingDate (legacy 2791–2799), VAT-period check landed with batch 6 (3976).
 export const checkPostingDate = async (c: Client, companyId: string, iso: string): Promise<string> => {
   if (!iso) return 'Enter a posting date.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return 'Enter a posting date.';
@@ -70,6 +77,11 @@ export const checkPostingDate = async (c: Client, companyId: string, iso: string
   if (!fy) return `No financial year exists for ${fmtD(iso)}. Add one under Settings → Financial Years.`;
   if (fy.status !== 'open')
     return `${fy.name} is closed, so posting dates in it are blocked. Ask an administrator to reopen it under Settings → Financial Years.`;
+  const vp = (await c.query(
+    `select start, end_date as "end" from vat_periods where company_id = $1 and status = 'closed' and start <= $2 and end_date >= $2`,
+    [companyId, iso],
+  )).rows[0];
+    if (vp) return `The VAT period ${vatLabel(vp.start, vp.end)} is closed, so documents dated ${fmtD(iso)} cannot be posted. Reopen it under VAT Returns → VAT Periods.`;
   return '';
 };
 

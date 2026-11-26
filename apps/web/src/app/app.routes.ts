@@ -19,6 +19,7 @@ import { AssetsRegisterComponent, AssetFormComponent, AssetsSvcComponent, Assets
 import { ContractsListComponent, ContractFormComponent } from './pages/contracts/contracts.pages';
 import { CbRunComponent, CbMetersComponent, CbPeriodsComponent, CbEscComponent, CbHistComponent, CustCinvComponent } from './pages/billing/billing.pages';
 import { SvCallsComponent, SvReqsComponent, SvWoComponent, SvWipComponent, SvSlaComponent } from './pages/service/service.pages';
+import { VatComponent } from './pages/vat/vat.pages';
 import {
   SettingsComponent, CompanyTaxComponent, YearsComponent, CompaniesTabComponent,
   UsersComponent, RolesComponent, EmailComponent, LogComponent, SitypesComponent,
@@ -85,6 +86,12 @@ const svcTabs: ModTab[] = [
   { label: 'Work Orders', path: '/service/wo', sec: 'trans', icon: 'ti-clipboard-list' },
   { label: 'Work In Progress', path: '/service/wip', sec: 'enq', icon: 'ti-progress' },
   { label: 'Call SLA', path: '/service/sla', sec: 'enq', icon: 'ti-stopwatch' },
+];
+// legacy VAT module is section-less — all tabs sit in one flat bar (sec 'maint' keeps ModTabs single-section)
+const vatTabs: ModTab[] = [
+  { label: 'Dashboard', path: '/vat/dash', sec: 'maint', icon: 'ti-dashboard' },
+  { label: 'Detail', path: '/vat/detail', sec: 'maint', icon: 'ti-list-details' },
+  { label: 'VAT Periods', path: '/vat/periods', sec: 'maint', icon: 'ti-calendar' },
 ];
 
 export const routes: Routes = [
@@ -215,6 +222,17 @@ export const routes: Routes = [
           { path: 'periods', component: CbPeriodsComponent, data: { mod: 'cbilling', sec: 'trans' }, canActivate: [canSecGuard] },
           { path: 'escalate', component: CbEscComponent, data: { mod: 'cbilling', sec: 'trans' }, canActivate: [canSecGuard] },
           { path: 'hist', component: CbHistComponent, data: { mod: 'cbilling', sec: 'enq' }, canActivate: [canSecGuard] },
+        ],
+      },
+      {
+        path: 'vat', component: ModTabsComponent,
+        data: { mod: 'vat', title: 'VAT Returns', sub: 'VAT Act 89 of 1991 — SARS eFiling', tabs: vatTabs },
+        canActivate: [canSecGuard],
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'dash' },
+          { path: 'dash', component: VatComponent, data: { mod: 'vat', tab: 'dash' }, canActivate: [canSecGuard] },
+          { path: 'detail', component: VatComponent, data: { mod: 'vat', tab: 'detail' }, canActivate: [canSecGuard] },
+          { path: 'periods', component: VatComponent, data: { mod: 'vat', tab: 'periods' }, canActivate: [canSecGuard] },
         ],
       },
       {

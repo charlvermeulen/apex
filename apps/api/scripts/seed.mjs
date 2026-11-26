@@ -72,6 +72,19 @@ const seed = async () => {
     await db.query(`insert into financial_years (company_id, name, start, end_date, status, is_current) values ($1,'FY 2024/25','2024-04-01','2025-03-31','open',true)`, [co.id]);
     await db.query(`insert into financial_years (company_id, name, start, end_date, status, is_current) values ($1,'FY 2025/26','2025-04-01','2026-03-31','open',false)`, [co.id]);
 
+    // vatDefaults port (legacy 3983), bi-monthly, shifted to the demo timeline; only the last stays open.
+    // Snap figures are filled on close — the demo closed periods have no seeded docs, so snaps are computed zeros.
+    const VP = [
+      ['2025-07-01', '2025-08-31', '2025-09-20', '2025-09-20'],
+      ['2025-09-01', '2025-10-31', '2025-11-20', '2025-11-20'],
+      ['2025-11-01', '2025-12-31', null, null],
+    ];
+    for (const [st, en, ca, sa] of VP)
+      await db.query(`insert into vat_periods (company_id, id, start, end_date, status, closed_at, closed_by, submitted_at, snap)
+        values ($1,$2,$3,$4,$5,$6,'system',$7,$8::jsonb)`,
+        [co.id, st.slice(0, 7), st, en, ca ? 'closed' : 'open', ca, sa,
+        ca ? JSON.stringify({ outEx: 0, out: 0, inEx: 0, inn: 0, net: 0, docs: 0 }) : null]);
+
     // ── batch 2 demo master data (ENQ.cust/ENQ.sup/STK/CATS/NIT seeds port) ──
     const CUST = [
       ['CUST-001', 'Woolworths Ltd', 'accounts@woolworths.co.za', '4001234567', 500000, '30 days'],

@@ -10,6 +10,7 @@ await db.query(`truncate table
   stock_items, stock_categories, sales_item_types, customers, suppliers,
   contract_escalations, contract_invoice_lines, meter_readings, contract_invoices,
   billing_periods, contract_meters, contract_lines, contracts, employees,
+  vat_periods,
   meter_types, contract_types, assets,
   financial_years, accounts, user_company_access, email_settings, app_settings,
   companies, users
